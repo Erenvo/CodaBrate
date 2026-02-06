@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* --- Ana Renkler --- */
+  --color-brand-dark: #0E0436;      /* Ana Arka Plan */
+  --color-brand-darker: #00001C;    /* Footer/Koyu Alanlar */
+  --color-brand-surface: #131120;   /* Kart/Panel Arka Planları */
+  --color-accent-blue: #0088FF;     /* Vurgu Rengi / Butonlar */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* --- Metin Renkleri --- */
+  --color-text-main: #EDEDED;       /* Ana Metin */
+  --color-text-muted: #B3B3B3;      /* İkincil Metin */
+  --color-text-dark: #1E1E1E;       /* Açık zemin üstü metin */
+
+  /* --- Sınır ve Çizgiler --- */
+  --color-border-dark: #2C2C2C;     /* Koyu modda çizgiler */
+  --color-border-light: #D9D9D9;    /* Açık modda çizgiler */
+
+  /* --- Font Ayarları --- */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: var(--color-brand-dark);
+  --foreground: var(--color-text-main);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  /* Düzeltilen kısım: */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

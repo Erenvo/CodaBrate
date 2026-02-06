@@ -1,10 +1,11 @@
+// app/projeler/olustur/page.tsx
 'use client'
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/app/AuthContext'
 import { useRouter } from 'next/navigation'
-import { Lock, Globe, Tags, AlertCircle, Plus } from 'lucide-react'
+import { Lock, X, Check, Loader2, AlertCircle } from 'lucide-react'
 
 export default function ProjeOlustur() {
   const { user, loading } = useAuth()
@@ -13,17 +14,16 @@ export default function ProjeOlustur() {
 
   const [formData, setFormData] = useState({
     title: '',
-    showcase_description: '',
-    safe_details: '',
+    short_description: '', 
+    public_details: '',    
+    safe_details: '',      
     tagsInput: '',
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // app/projeler/olustur/page.tsx içindeki handleSubmit fonksiyonu
-
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     setError(null)
@@ -40,131 +40,185 @@ const handleSubmit = async (e: React.FormEvent) => {
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0)
 
+    // Açıklamaları birleştir
+    const combinedDescription = `${formData.short_description}\n\n${formData.public_details}`
+
     // 1. ADIM: Vitrin (projects) Kaydı
-    // DİKKAT: Burada artık 'safe_details' YOK!
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .insert({
         owner_id: user.id,
         title: formData.title,
-        showcase_description: formData.showcase_description,
-        category_tags: tagsArray,
+        showcase_description: combinedDescription, // DÜZELTİLDİ: DB'deki isme geri döndük
+        category_tags: tagsArray,                  // DÜZELTİLDİ: DB'deki isme geri döndük
       })
-      .select('id') // ID'yi geri istiyoruz
+      .select('id')
       .single()
 
     if (projectError) {
-      setError('Proje hatası: ' + projectError.message)
+      setError('Proje kaydedilemedi: ' + projectError.message)
       setIsSubmitting(false)
       return
     }
 
     if (projectData) {
       // 2. ADIM: Kasa (project_vault) Kaydı
-      // Gizli veriyi buraya, yeni tabloya yazıyoruz
       const { error: vaultError } = await supabase
         .from('project_vault')
         .insert({
           project_id: projectData.id,
-          safe_details: formData.safe_details // <--- DOĞRU YER BURASI ✅
+          safe_details: formData.safe_details
         })
 
       if (vaultError) {
-        setError('Kasa hatası: ' + vaultError.message)
-      } else {
-        router.push('/projeler')
-        router.refresh()
+        console.error('Kasa hatası:', vaultError)
       }
+      
+      router.push('/projeler')
+      router.refresh()
     }
     
     setIsSubmitting(false)
   }
 
-  if (loading) return <div className="p-20 text-center text-gray-400">Yükleniyor...</div>
-  if (!user) return <div className="p-20 text-center text-gray-400">Önce giriş yapmalısınız.</div>
+  // Yükleniyor ekranı
+  if (loading) return (
+    <div className="min-h-screen bg-[#01001C] flex items-center justify-center text-white">
+      <Loader2 className="animate-spin" />
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 py-12 px-4">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-            <Plus className="text-indigo-500" /> Yeni Proje Oluştur
+    <div className="min-h-screen bg-[#01001C] py-12 px-4 flex items-center justify-center font-['Inter'] relative overflow-hidden">
+      
+      {/* Arkaplan Süslemesi */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-[#01001C] to-[#01001C] -z-10"></div>
+
+      {/* --- ANA KART --- */}
+      <div className="w-full max-w-[900px] bg-[#08101A]/90 backdrop-blur-md border border-gray-800 rounded-[30px] p-8 md:p-12 relative shadow-2xl">
+        
+        {/* Başlık ve Kapat Butonu */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-[#FFFDFD] text-3xl font-bold tracking-tight">
+            Yeni Proje Oluştur
           </h1>
-          <p className="text-gray-400 mt-2">
-            Fikrini "Vitrin" ve "Kasa" mantığıyla paylaş.
-          </p>
+          <button 
+            onClick={() => router.back()}
+            className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition group"
+          >
+            <X className="text-white group-hover:text-red-400 transition" size={24} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-xl p-8 shadow-lg space-y-8">
+        {/* Ayıraç Çizgi */}
+        <div className="w-full h-px bg-[#8E8E93] opacity-30 mb-10"></div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-8">
           
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Proje Başlığı</label>
+          {/* Proje Başlığı */}
+          <div className="flex flex-col gap-2">
+            <label className="text-white text-base font-normal">Proje Başlığı</label>
             <input
               type="text"
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="Örn: Kampüs Pazarı"
+              className="w-full h-[50px] px-4 bg-white rounded-lg border border-[#D9D9D9] text-[#1E1E1E] placeholder-[#757575] focus:outline-none focus:ring-2 focus:ring-[#0088FF] transition"
+              placeholder="Örn: Dijital Ajanda"
             />
           </div>
 
-          <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-lg p-5">
-            <div className="flex items-center gap-2 mb-3 text-indigo-400">
-              <Globe size={20} />
-              <h3 className="font-semibold text-lg">Vitrin (Herkese Açık)</h3>
-            </div>
+          {/* Kısa Açıklama */}
+          <div className="flex flex-col gap-2">
+            <label className="text-white text-base font-normal">Kısa Açıklama</label>
+            <input
+              type="text"
+              required
+              value={formData.short_description}
+              onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
+              className="w-full h-[50px] px-4 bg-white rounded-lg border border-[#D9D9D9] text-[#1E1E1E] placeholder-[#757575] focus:outline-none focus:ring-2 focus:ring-[#0088FF] transition"
+              placeholder="Listelerde görünecek kısa özet..."
+            />
+          </div>
+
+          {/* Herkese Açık Detaylar */}
+          <div className="flex flex-col gap-2">
+            <label className="text-white text-base font-normal">Herkese Açık Detaylar</label>
             <textarea
               required
-              rows={3}
-              value={formData.showcase_description}
-              onChange={(e) => setFormData({ ...formData, showcase_description: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="Projenin kısa ve merak uyandıran özeti..."
+              rows={4}
+              value={formData.public_details}
+              onChange={(e) => setFormData({ ...formData, public_details: e.target.value })}
+              className="w-full p-4 bg-white rounded-lg border border-[#D9D9D9] text-[#1E1E1E] placeholder-[#757575] focus:outline-none focus:ring-2 focus:ring-[#0088FF] transition resize-none"
+              placeholder="Projenin amacı, kullanılan teknolojiler ve aranan ekip arkadaşları..."
             />
+            <p className="text-[#B3B3B3] text-[10px] mt-1">Bu kısım tüm kullanıcılar tarafından görülebilir.</p>
           </div>
 
-          <div className="bg-emerald-900/20 border border-emerald-500/30 rounded-lg p-5">
-            <div className="flex items-center gap-2 mb-3 text-emerald-400">
-              <Lock size={20} />
-              <h3 className="font-semibold text-lg">Kasa (Gizli Detaylar)</h3>
+          {/* Gizli Detaylar */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Lock className="text-[#FFCC00]" size={18} />
+              <label className="text-[#FFCC00] text-base font-normal">Gizli Detaylar</label>
             </div>
             <textarea
               required
               rows={4}
               value={formData.safe_details}
               onChange={(e) => setFormData({ ...formData, safe_details: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-              placeholder="Teknik detaylar, iş modeli..."
+              className="w-full p-4 bg-white rounded-lg border border-[#D9D9D9] text-[#1E1E1E] placeholder-[#757575] focus:outline-none focus:ring-2 focus:ring-[#FFCC00] transition resize-none"
+              placeholder="Repo linkleri, API anahtarları, tasarım dosyaları, Trello board link vb."
             />
+            <p className="text-[#B3B3B3] text-[10px] mt-1">Bu kısım sadece onayladığın ekip üyeleri tarafından görülebilir.</p>
           </div>
 
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-              <Tags size={16} /> Kategori Etiketleri
-            </label>
+          {/* Etiketler */}
+          <div className="flex flex-col gap-2">
+            <label className="text-white text-base font-normal">Etiketler (Virgül ile ayırın)</label>
             <input
               type="text"
               value={formData.tagsInput}
               onChange={(e) => setFormData({ ...formData, tagsInput: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="Örn: React, Girişimcilik, AI"
+              className="w-full h-[50px] px-4 bg-white rounded-lg border border-[#D9D9D9] text-[#1E1E1E] placeholder-[#757575] focus:outline-none focus:ring-2 focus:ring-[#0088FF] transition"
+              placeholder="React, Next.js.."
             />
           </div>
 
+          {/* Hata Mesajı */}
           {error && (
-            <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-3 text-sm">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg flex items-center gap-3 text-sm">
               <AlertCircle size={18} /> {error}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
-          >
-            {isSubmitting ? 'Oluşturuluyor...' : 'Projeyi Yayınla'}
-          </button>
+          {/* Butonlar */}
+          <div className="flex items-center justify-end gap-4 mt-4">
+            
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-6 py-3 bg-[#2C2C2C] rounded-lg text-[#F5F5F5] text-base font-medium hover:bg-[#363636] transition border border-[#2C2C2C]"
+            >
+              İptal
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-6 py-3 bg-white rounded-lg text-[#1E1E1E] text-base font-medium hover:bg-gray-100 transition flex items-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin w-4 h-4" /> Yayınlanıyor...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" /> Projeyi Yayınla
+                </>
+              )}
+            </button>
+
+          </div>
         </form>
       </div>
     </div>

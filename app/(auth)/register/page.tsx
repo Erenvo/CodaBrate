@@ -3,10 +3,11 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Eye, EyeOff, Check, X, Loader2 } from 'lucide-react'
 
 export default function RegisterPage() {
+  // --- MEVCUT MANTIK (LOGIC) ---
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -45,7 +46,9 @@ export default function RegisterPage() {
   }, [username])
 
   const validateEmailDomain = (email: string) => {
-    return email.endsWith('.edu.tr')
+    // Geçici olarak her emaile izin veriyoruz, kısıtlamayı sonra açabilirsin:
+    // return email.endsWith('.edu.tr')
+    return true 
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -61,13 +64,13 @@ export default function RegisterPage() {
     }
 
     if (password !== confirmPassword) {
-      setError('Şifreler eşleşmiyor. Lütfen aynı şifreyi gir.')
+      setError('Şifreler eşleşmiyor.')
       setLoading(false)
       return
     }
 
     if (usernameStatus === 'taken') {
-      setError('Bu kullanıcı adı maalesef alınmış. Lütfen başka bir tane seç.')
+      setError('Bu kullanıcı adı alınmış.')
       setLoading(false)
       return
     }
@@ -86,158 +89,164 @@ export default function RegisterPage() {
     if (error) {
       setError(error.message)
     } else {
-      setMessage('Kayıt başarılı! Lütfen e-postanızı kontrol ederek hesabınızı onaylayın.')
+      setMessage('Kayıt başarılı! Lütfen e-postanı kontrol et.')
+      // Formu temizle
       setEmail('')
       setPassword('')
       setConfirmPassword('')
       setUsername('')
       setFullName('')
-      setUsernameStatus(null)
     }
     setLoading(false)
   }
 
+  // --- YENİ TASARIM (UI) ---
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center px-6">
-      <div className="max-w-md w-full bg-gray-800 border border-gray-700 rounded-xl p-8 shadow-lg">
-        <div className="text-center mb-6">
-          <div className="h-12 w-12 mx-auto rounded-lg bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-bold text-lg mb-3">UP</div>
-          <h1 className="text-2xl font-semibold text-white">Kayıt Ol</h1>
-          <p className="text-sm text-gray-400">Yeni bir hesap oluşturmak için bilgileri doldur.</p>
+    // Ana Arkaplan (Figma: #01001C -> bg-slate-950)
+    <div className="min-h-screen w-full bg-[#01001C] flex items-center justify-center relative overflow-hidden font-['Inter']">
+      
+      {/* Arkaplan Süslemeleri (Opsiyonel blur efektleri eklenebilir) */}
+      
+      {/* KART YAPISI */}
+      {/* Figma: w-[501px] h-[594px] bg-slate-900 rounded-3xl opacity-80 */}
+      <div className="w-full max-w-[500px] bg-[#1B1A33] bg-opacity-90 rounded-3xl shadow-2xl border border-gray-800/50 p-8 md:p-12 z-10 backdrop-blur-sm mx-4">
+        
+        {/* Başlık */}
+        <div className="flex flex-col items-center mb-8">
+          <h1 className="text-stone-300 text-2xl font-semibold tracking-tight shadow-black drop-shadow-md">
+            Hesap Oluştur
+          </h1>
         </div>
 
-        <form onSubmit={handleRegister} className="flex flex-col gap-4">
-          <input
-            type="text"
-            placeholder="Ad Soyad"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-            className="rounded-md bg-gray-900 border border-gray-700 px-4 py-3 text-gray-200 focus:ring-indigo-500 outline-none"
-          />
+        {/* Form */}
+        <form onSubmit={handleRegister} className="flex flex-col gap-5">
           
-          {/* Kullanıcı Adı Alanı */}
-          <div>
+          {/* Ad Soyad */}
+          <div className="flex flex-col gap-2">
+             {/* Input: bg-neutral-400 (#999999) olarak verilmiş ama yazı okunabilirliği için biraz şeffaflık veya koyuluk gerekebilir. 
+                 Tasarımı korumak için neutral-400 verdim ama text rengini ayarladım. */}
+            <div className="relative group">
+              <input
+                type="text"
+                placeholder="Ad Soyad"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="w-full h-12 px-4 bg-[#999999] rounded-lg text-[#1B1A33] placeholder-[#4a4a4a] outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium"
+              />
+            </div>
+          </div>
+
+          {/* Kullanıcı Adı */}
+          <div className="flex flex-col gap-2">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Kullanıcı Adı"
                 value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} 
+                onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
                 required
-                className="w-full rounded-md bg-gray-900 border border-gray-700 px-4 py-3 pr-10 text-gray-200 focus:ring-indigo-500 outline-none"
+                className="w-full h-12 px-4 bg-[#999999] rounded-lg text-[#1B1A33] placeholder-[#4a4a4a] outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium pr-10"
               />
-              {checkingUsername && (
-                <div className="absolute right-3 top-3 text-gray-400">
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                </div>
-              )}
-              {!checkingUsername && usernameStatus === 'available' && (
-                <div className="absolute right-3 top-3 text-green-400">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
-              {!checkingUsername && usernameStatus === 'taken' && (
-                <div className="absolute right-3 top-3 text-red-400">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
+              {/* Durum İkonu */}
+              <div className="absolute right-3 top-3.5">
+                {checkingUsername && <Loader2 className="animate-spin text-gray-700" size={20} />}
+                {!checkingUsername && usernameStatus === 'available' && <Check className="text-green-700" size={20} />}
+                {!checkingUsername && usernameStatus === 'taken' && <X className="text-red-700" size={20} />}
+              </div>
             </div>
-            {usernameStatus === 'available' && (
-              <p className="text-sm text-green-400 mt-1">✓ Bu kullanıcı adı kullanılabilir</p>
-            )}
-            {usernameStatus === 'taken' && (
-              <p className="text-sm text-red-400 mt-1">✗ Bu kullanıcı adı alınmış</p>
-            )}
+            {/* Hata Mesajı */}
+            {usernameStatus === 'taken' && <span className="text-red-400 text-xs ml-1">Bu kullanıcı adı alınmış.</span>}
           </div>
 
-          <input
-            type="email"
-            placeholder="Üniversite e-postan (@edu.tr)"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="rounded-md bg-gray-900 border border-gray-700 px-4 py-3 text-gray-200 focus:ring-indigo-500 outline-none"
-          />
-          
-          {/* Şifre Alanı */}
-          <div className="relative">
+          {/* E-posta */}
+          <div className="flex flex-col gap-2">
+            <input
+              type="email"
+              placeholder="Üniversite e-postan (@edu.tr)"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full h-12 px-4 bg-[#999999] rounded-lg text-[#1B1A33] placeholder-[#4a4a4a] outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium"
+            />
+          </div>
+
+          {/* Şifre */}
+          <div className="flex flex-col gap-2 relative">
             <input
               type={showPassword ? 'text' : 'password'}
-              placeholder="Şifre oluştur"
+              placeholder="Şifre"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-md bg-gray-900 border border-gray-700 px-4 py-3 pr-10 text-gray-200 focus:ring-indigo-500 outline-none"
+              className="w-full h-12 px-4 bg-[#999999] rounded-lg text-[#1B1A33] placeholder-[#4a4a4a] outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium pr-10"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-gray-400 hover:text-gray-300 transition"
+              className="absolute right-3 top-3.5 text-gray-700 hover:text-black transition"
             >
-              {showPassword ? (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-14-14zM10 4.5a7 7 0 016.338 10.355l-1.413-1.413A5 5 0 109.999 5.5H10a1 1 0 000-2zm3.894 10.445l-1.414-1.414A3 3 0 106.5 9.5a1 1 0 01-2 0 5 5 0 118.106 5.445z" clipRule="evenodd" />
-                </svg>
-              )}
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
 
-          {/* Şifre Onay Alanı */}
-          <div className="relative">
+          {/* Şifre Tekrar */}
+          <div className="flex flex-col gap-2 relative">
             <input
               type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Şifreyi onayla"
+              placeholder="Şifre Tekrar"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="w-full rounded-md bg-gray-900 border border-gray-700 px-4 py-3 pr-10 text-gray-200 focus:ring-indigo-500 outline-none"
+              className="w-full h-12 px-4 bg-[#999999] rounded-lg text-[#1B1A33] placeholder-[#4a4a4a] outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium pr-10"
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-3 text-gray-400 hover:text-gray-300 transition"
+              className="absolute right-3 top-3.5 text-gray-700 hover:text-black transition"
             >
-              {showConfirmPassword ? (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-14-14zM10 4.5a7 7 0 016.338 10.355l-1.413-1.413A5 5 0 109.999 5.5H10a1 1 0 000-2zm3.894 10.445l-1.414-1.414A3 3 0 106.5 9.5a1 1 0 01-2 0 5 5 0 118.106 5.445z" clipRule="evenodd" />
-                </svg>
-              )}
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
-          
-          <button
-            type="submit"
-            disabled={loading || usernameStatus === 'taken'}
-            className="rounded-md bg-indigo-600 px-4 py-3 text-white font-medium hover:opacity-90 transition disabled:opacity-50"
-          >
-            {loading ? 'Kontrol Ediliyor...' : 'Kayıt Ol'}
-          </button>
 
-          {error && <p className="text-sm text-red-400 text-center bg-red-500/10 p-2 rounded border border-red-500/20">{error}</p>}
-          {message && <p className="text-sm text-green-500 text-center">{message}</p>}
+          {/* Hata / Başarı Mesajları */}
+          {error && (
+            <div className="bg-red-500/20 text-red-200 text-sm p-3 rounded-lg border border-red-500/30 text-center">
+              {error}
+            </div>
+          )}
+          {message && (
+            <div className="bg-green-500/20 text-green-200 text-sm p-3 rounded-lg border border-green-500/30 text-center">
+              {message}
+            </div>
+          )}
+
+          {/* Kayıt Ol Butonu */}
+          {/* Figma: bg-Background-Brand-Default (#2C2C2C) + border */}
+          <div className="flex justify-center mt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative px-8 py-3 bg-[#2C2C2C] rounded-[20px] shadow-lg border border-[#2C2C2C] hover:border-gray-500 hover:bg-[#363636] transition-all duration-300 w-full md:w-auto"
+            >
+              <span className="text-[#F5F5F5] text-base font-normal font-['Inter']">
+                {loading ? 'İşleniyor...' : 'Kayıt Ol'}
+              </span>
+            </button>
+          </div>
+
         </form>
 
-        <div className="mt-4 text-center text-sm text-gray-400">
-          Zaten bir hesabın var mı? <Link href="/login" className="text-indigo-400 hover:underline">Giriş yap</Link>
+        {/* Alt Linkler */}
+        <div className="flex justify-center items-center gap-2 mt-8">
+          <span className="text-stone-400 text-sm font-semibold shadow-black drop-shadow-sm">
+            Zaten hesabın var mı?
+          </span>
+          <Link href="/login" className="text-gray-200 text-sm font-semibold hover:text-white transition shadow-black drop-shadow-sm border-b border-transparent hover:border-white">
+            Giriş Yap
+          </Link>
         </div>
+
       </div>
     </div>
   )

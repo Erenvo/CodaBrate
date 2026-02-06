@@ -1,9 +1,8 @@
 // app/components/talents/TalentList.tsx
 'use client'
 import Link from 'next/link'
-import { User, MapPin, BookOpen, ArrowRight } from 'lucide-react'
+import { User, ArrowRight } from 'lucide-react'
 
-// Tip tanımını burayla da eşleştirelim
 export type ProfileType = {
   id: string
   username: string
@@ -12,6 +11,7 @@ export type ProfileType = {
   department: string
   bio: string
   skills: string[] | null
+  avatar_url?: string
 }
 
 type Props = {
@@ -20,73 +20,77 @@ type Props = {
 }
 
 export function TalentList({ profiles, loading }: Props) {
-  if (loading) return <div className="text-center py-20 text-gray-500">Yetenekler aranıyor...</div>
+  
+  // Yükleniyor Durumu
+  if (loading) return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="h-[260px] bg-[#1B1A33] rounded-[25px] animate-pulse border border-white/5"></div>
+      ))}
+    </div>
+  )
 
+  // Sonuç Yoksa
   if (profiles.length === 0) return (
-    <div className="text-center py-20 border border-dashed border-gray-700 rounded-xl bg-gray-800/50">
-      <div className="bg-gray-800 inline-block p-4 rounded-full mb-4 shadow-sm">
-        <User size={32} className="text-gray-600" />
+    <div className="text-center py-20 bg-[#1B1A33] rounded-[25px] border border-dashed border-gray-700">
+      <div className="bg-white/10 inline-flex p-4 rounded-full mb-4">
+        <User size={32} className="text-gray-400" />
       </div>
       <h3 className="text-xl font-semibold text-white">Kimse bulunamadı</h3>
-      <p className="text-gray-400 mt-2">Farklı bir arama terimi deneyebilirsin.</p>
+      <p className="text-gray-400 mt-2">Farklı bir arama yapmayı dene.</p>
     </div>
   )
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20">
       {profiles.map((profile) => (
-        <article key={profile.id} className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-indigo-500/50 transition group flex flex-col h-full hover:shadow-lg hover:shadow-indigo-500/10">
-          <div className="p-6 flex-1 flex flex-col">
-            <div className="flex items-center gap-4 mb-4">
-              {/* AVATAR: Varsa Ad Soyad baş harfleri, yoksa Nickname baş harfleri */}
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-md shrink-0">
-                {profile.full_name 
-                  ? profile.full_name.slice(0, 2).toUpperCase() 
-                  : profile.username?.slice(0, 2).toUpperCase()}
-              </div>
-              
-              <div className='overflow-hidden'>
-                {/* İSİM: Varsa Full Name, Yoksa Username */}
-                <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition truncate">
-                  {profile.full_name || profile.username}
-                </h3>
-                
-                {/* HANDLE: @nickname (Her zaman görünür) */}
-                <div className="text-xs text-indigo-400 font-medium mb-1">
-                  @{profile.username}
-                </div>
-                
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <MapPin size={12} />
-                  <span className="truncate max-w-[150px]">{profile.university || 'Üniversite Yok'}</span>
-                </div>
-              </div>
-            </div>
+        <Link 
+          href={`/profil/${profile.id}`} 
+          key={profile.id}
+          className="group relative h-[260px] bg-[#1B1A33] rounded-[25px] p-6 flex flex-col justify-between transition-all hover:translate-y-[-5px] hover:shadow-2xl hover:shadow-[#0088FF]/10"
+        >
+          {/* 1. Üst Kısım: Avatar ve İsim */}
+          <div className="flex items-center gap-3">
+             {/* Avatar (Figma: Circle Large) */}
+             <div className="w-[40px] h-[40px] rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border border-white/10 shrink-0">
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[#1E1E1E] font-bold text-lg">
+                    {profile.full_name ? profile.full_name[0].toUpperCase() : profile.username[0].toUpperCase()}
+                  </span>
+                )}
+             </div>
 
-            {profile.department && (
-              <div className="flex items-center gap-2 text-sm text-gray-300 mb-3 bg-gray-700/30 p-2 rounded">
-                <BookOpen size={16} className="text-indigo-400" />
-                <span className="truncate">{profile.department}</span>
-              </div>
-            )}
-            
-            <p className="text-gray-400 text-sm line-clamp-2 mb-4 flex-1">
-              {profile.bio || 'Henüz biyografi eklenmemiş.'}
-            </p>
-            
-            <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-700/50">
-              {profile.skills?.slice(0, 3).map((skill, index) => (
-                <span key={index} className="px-2 py-1 rounded-md bg-gray-700/50 text-indigo-300 text-xs border border-gray-600/50">
-                  {skill}
+             {/* İsim ve Okul */}
+             <div className="flex flex-col">
+                <span className="text-white text-base font-semibold font-['Inter'] leading-tight truncate max-w-[200px]">
+                  {profile.full_name || profile.username}
                 </span>
-              ))}
-            </div>
+                <span className="text-[#B3B3B3] text-sm font-normal font-['Inter'] truncate max-w-[200px]">
+                  {profile.university || 'Üniversite Belirtilmemiş'}
+                </span>
+             </div>
           </div>
-          
-          <Link href={`/profil/${profile.id}`} className="bg-gray-900/30 border-t border-gray-700 px-6 py-3 flex justify-between items-center text-sm text-indigo-400 font-medium hover:bg-gray-700/50 transition">
-            Profili İncele <ArrowRight size={16} />
-          </Link>
-        </article>
+
+          {/* 2. Orta Kısım: Ayraç Çizgisi */}
+          <div className="w-full h-px bg-white/20 my-2"></div>
+
+          {/* 3. Alt Kısım: Biyografi Özeti */}
+          <div className="flex-1 flex items-center justify-center text-center px-2">
+            <p className="text-white text-base font-normal font-['Inter'] line-clamp-3 opacity-90">
+              {profile.bio || "Henüz biyografi eklenmemiş."}
+            </p>
+          </div>
+
+          {/* 4. İkon: Ok Butonu (Figma: Sağ altta yuvarlak ikon) */}
+          <div className="absolute bottom-6 right-6">
+             <div className="w-[24px] h-[24px] rounded-full border border-white/30 flex items-center justify-center group-hover:bg-white group-hover:border-white transition-colors">
+               <ArrowRight size={14} className="text-white group-hover:text-[#1B1A33] transition-colors" />
+             </div>
+          </div>
+
+        </Link>
       ))}
     </div>
   )

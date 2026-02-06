@@ -1,174 +1,201 @@
 // app/projeler/page.tsx
-'use client'
-
-import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Search, Plus, Calendar, User, ArrowRight, MapPin, Globe, Lock } from 'lucide-react'
+import { Plus, Search, ArrowRight, User } from 'lucide-react'
 
-// Veri Tipi
-type ProjectType = {
+// Cache'i kapatıp verinin her zaman güncel kalmasını sağlar
+export const dynamic = 'force-dynamic'
+
+// Veri Tipi Tanımlaması
+type Project = {
   id: string
   title: string
-  showcase_description: string
-  category_tags: string[] | null
+  description: string
+  tags: string[]
+  category_tags?: string[]
   created_at: string
-  status: string
-  profiles: {
+  owner_id: string
+  profiles?: {
     username: string
-    university: string
-  } | null
+    full_name: string
+    // avatar_url kaldırıldı çünkü veritabanında yok
+  }
 }
 
-export default function ProjePazariPage() {
-  // Başlangıç değerini boş dizi [] olarak garantiledik
-  const [projects, setProjects] = useState<ProjectType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
+// Filtre Kategorileri
+const CATEGORIES = [
+  "Machine Learning", "Python", "Data Science", 
+  "Web Development", "Flutter", "Cyber Security", 
+  "Game Development", "React", "C#", "Swift"
+]
+
+export default async function ProjectsPage() {
   const supabase = createClient()
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`*, profiles (username, university)`)
-        .order('created_at', { ascending: false })
+  // Projeleri Çek (Profil bilgisiyle beraber)
+  // DÜZELTME: 'avatar_url' sorgudan çıkarıldı.
+  const { data: projects, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      profiles:owner_id (username, full_name)
+    `)
+    .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Hata:', error)
-      } else {
-        // KRİTİK DÜZELTME: Veri yoksa boş dizi [] ata. Asla null olmasın.
-        setProjects((data as any) || [])
-      }
-      setLoading(false)
-    }
-    fetchProjects()
-  }, [supabase])
-
-  // Filtreleme (Güvenli Mod: projects?.filter)
-  const filteredProjects = projects?.filter((p) =>
-    p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.showcase_description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category_tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  ) || []
+  if (error) {
+    console.error("Supabase Hatası:", error.message)
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 py-12 px-4">
-      <div className="max-w-6xl mx-auto">
+    // Ana Konteyner: bg-[#01001C] (Koyu Lacivert)
+    <main className="min-h-screen bg-[#01001C] text-white font-['Inter'] pb-20">
+      
+      {/* --- HEADER BÖLÜMÜ --- */}
+      <div className="max-w-[1440px] mx-auto px-6 pt-12 pb-8">
         
-        {/* --- ÜST KISIM (BAŞLIK & ARAMA) --- */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Proje Pazarı</h1>
-            <p className="text-gray-400 mt-2">Hayalindeki projeyi bul veya kendi ekibini kur.</p>
-          </div>
-          
-          <div className="flex w-full md:w-auto gap-3">
-            <div className="relative flex-1 md:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
-              <input 
-                type="text" 
-                placeholder="Proje, etiket veya konu ara..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-gray-500"
-              />
-            </div>
-            <Link 
-              href="/projeler/olustur" 
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition shadow-lg shadow-indigo-500/20"
-            >
-              <Plus size={20} />
-              <span className="hidden sm:inline">Proje Oluştur</span>
-            </Link>
-          </div>
+        {/* Başlık ve Alt Başlık */}
+        <div className="flex flex-col gap-4 mb-8">
+          <h1 className="text-4xl font-bold tracking-tight text-[#FFFDFD]">
+            Projeler
+          </h1>
+          <p className="text-2xl font-normal text-gray-300">
+            Hayalindeki projeyi bul veya kendi ekibini kur.
+          </p>
         </div>
 
-        {/* --- LİSTELEME KISMI --- */}
-        
-        {/* Yükleniyor... */}
-        {loading && (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+        {/* Arama ve Aksiyon Alanı */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+          
+          {/* Arama Çubuğu */}
+          <div className="relative w-full md:w-[320px] group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-[#1E1E1E]" />
+            </div>
+            <input
+              type="text"
+              placeholder="Proje veya konu ara..."
+              className="block w-full pl-10 pr-4 py-3 bg-white border border-[#D9D9D9] rounded-full text-[#B3B3B3] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0088FF] focus:border-transparent transition-all shadow-sm"
+            />
           </div>
-        )}
 
-        {/* Liste */}
-        {!loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => (
-              <article key={project.id} className="flex flex-col bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10 transition group h-full relative">
-                
-                {/* Durum Etiketi */}
-                <div className="absolute top-4 right-4 z-10">
-                  {(project.status === 'active' || !project.status) && <span className="bg-green-500/10 text-green-400 text-[10px] px-2 py-1 rounded border border-green-500/20 font-medium uppercase tracking-wide">Yayında</span>}
-                  {project.status === 'completed' && <span className="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-1 rounded border border-blue-500/20 font-medium uppercase tracking-wide">Tamamlandı</span>}
-                  {project.status === 'closed' && <span className="bg-red-500/10 text-red-400 text-[10px] px-2 py-1 rounded border border-red-500/20 font-medium uppercase tracking-wide">Kapalı</span>}
+          {/* Proje Oluştur Butonu */}
+          <Link 
+            href="/projeler/olustur" 
+            className="flex items-center gap-2 bg-[#0088FF] hover:bg-blue-600 text-[#F5F5F5] px-6 py-3 rounded-full transition shadow-lg shadow-blue-500/20"
+          >
+            <Plus size={20} />
+            <span className="text-base font-medium">Proje Oluştur</span>
+          </Link>
+        </div>
+
+        {/* Kategori Filtreleri */}
+        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide mb-8">
+          <button className="flex-shrink-0 bg-white text-black px-5 py-2.5 rounded-full text-sm font-medium border border-transparent hover:opacity-90 transition">
+            Tümü
+          </button>
+          {CATEGORIES.map((cat) => (
+            <button 
+              key={cat}
+              className="flex-shrink-0 bg-[#2C2C2C] text-[#F5F5F5] px-5 py-2.5 rounded-full border border-[#2C2C2C] text-sm font-normal hover:border-gray-500 hover:bg-[#363636] transition"
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+      </div>
+
+      {/* --- PROJE KARTLARI GRID --- */}
+      <div className="max-w-[1440px] mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          
+          {/* Eğer proje yoksa veya hata varsa */}
+          {(!projects || projects.length === 0) && (
+             <div className="col-span-full text-center py-20 text-gray-500 flex flex-col items-center">
+               <p className="mb-4">Henüz hiç proje oluşturulmamış veya görüntülenemiyor.</p>
+               {error && <p className="text-red-400 text-sm">Hata Detayı: {error.message}</p>}
+             </div>
+          )}
+
+          {/* Projeleri Listele */}
+          {projects?.map((project: any) => {
+             // Etiket verisini güvenli hale getir
+             const displayTags = project.tags || project.category_tags || [];
+             
+             return (
+              <div 
+                key={project.id}
+                className="group relative flex flex-col h-[380px] bg-[#0E0436]/80 backdrop-blur-sm border border-[#EDEDED]/20 rounded-[30px] p-8 transition hover:border-[#0088FF]/50 hover:shadow-[0_0_30px_-10px_rgba(0,136,255,0.3)] shadow-[inset_0_16px_32px_-4px_rgba(12,12,13,0.1)]"
+              >
+                {/* Kart Üstü: Kullanıcı Bilgisi */}
+                <div className="flex items-center gap-3 mb-6">
+                  {/* Avatar olmadığı için direkt User ikonu kullanıyoruz */}
+                  <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
+                    <User className="text-white w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-white text-sm font-light tracking-wide">
+                      {project.profiles?.full_name || project.profiles?.username || 'Anonim Kaptan'}
+                    </h3>
+                    <span className="text-xs text-gray-400">Project Owner</span>
+                  </div>
                 </div>
 
-                <div className="p-6 flex-1 flex flex-col">
-                  {/* Yazar Bilgisi */}
-                  <div className="flex items-center justify-between mb-4 mr-16"> {/* mr-16 etikete yer açmak için */}
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <div className="bg-gray-700 p-1 rounded-full"><User size={12} /></div>
-                      <span className="text-indigo-300 font-medium truncate max-w-[100px]">{project.profiles?.username || 'Anonim'}</span>
-                    </div>
-                  </div>
-
-                  {/* Başlık */}
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-indigo-400 transition line-clamp-1" title={project.title}>
+                {/* Kart İçeriği: Başlık ve Açıklama */}
+                <div className="flex-1">
+                  <h2 className="text-2xl font-semibold text-white mb-3 line-clamp-1 group-hover:text-[#0088FF] transition-colors">
                     {project.title}
-                  </h3>
-
-                  {/* Açıklama */}
-                  <p className="text-gray-400 text-sm line-clamp-3 mb-4 flex-1">
-                    {project.showcase_description}
+                  </h2>
+                  <p className="text-[#B3B3B3] text-lg font-light leading-relaxed line-clamp-3 whitespace-pre-line">
+                    {project.description || "Açıklama yok."}
                   </p>
+                </div>
 
+                {/* Ayıraç Çizgiler */}
+                <div className="relative h-px w-full bg-white/10 my-6">
+                   <div className="absolute left-0 top-0 h-full w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+                </div>
+
+                {/* Kart Altı: Etiketler ve Buton */}
+                <div className="flex items-center justify-between mt-auto">
+                  
                   {/* Etiketler */}
-                  <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-gray-700/50">
-                    {project.category_tags?.slice(0, 3).map((tag, index) => (
-                      <span key={index} className="px-2 py-1 rounded-md bg-gray-700/30 text-indigo-300 text-xs border border-gray-600/50">
+                  <div className="flex gap-2">
+                    {displayTags.slice(0, 2).map((tag: string, index: number) => (
+                      <span 
+                        key={index} 
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                          index === 0 
+                          ? 'bg-[#0088FF] text-white' 
+                          : 'bg-white text-black'
+                        }`}
+                      >
                         {tag}
                       </span>
                     ))}
-                    {project.category_tags && project.category_tags.length > 3 && (
-                        <span className="text-xs text-gray-500 self-center">+{project.category_tags.length - 3}</span>
+                    {displayTags.length > 2 && (
+                      <span className="px-2 py-1.5 rounded-full bg-white/10 text-white text-xs">+</span>
                     )}
                   </div>
-                </div>
 
-                {/* Alt Bilgi */}
-                <div className="bg-gray-900/30 px-6 py-3 flex justify-between items-center border-t border-gray-700">
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
-                    <Calendar size={14} />
-                    {new Date(project.created_at).toLocaleDateString('tr-TR')}
-                  </div>
-                  <Link href={`/projeler/${project.id}`} className="text-sm text-indigo-400 font-medium hover:text-indigo-300 flex items-center gap-1">
-                    Detaylar <ArrowRight size={16} />
+                  {/* İncele Linki */}
+                  <Link 
+                    href={`/projeler/${project.id}`} 
+                    className="flex items-center gap-2 text-white hover:text-[#0088FF] transition group/link"
+                  >
+                    <span className="text-sm font-medium">İncele</span>
+                    <div className="bg-white text-black p-1 rounded-full group-hover/link:bg-[#0088FF] group-hover/link:text-white transition">
+                       <ArrowRight size={14} />
+                    </div>
                   </Link>
+
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
+              </div>
+            )
+          })}
 
-        {/* Hiç Proje Yoksa */}
-        {!loading && filteredProjects.length === 0 && (
-          <div className="text-center py-20 border border-dashed border-gray-700 rounded-xl bg-gray-800/50">
-            <div className="bg-gray-800 inline-block p-4 rounded-full mb-4 shadow-sm">
-              <Search size={32} className="text-gray-500" />
-            </div>
-            <h3 className="text-xl font-semibold text-white">Henüz proje bulunamadı</h3>
-            <p className="text-gray-400 mt-2">Aramayı değiştirmeyi veya ilk projeyi sen oluşturmayı dene.</p>
-            <Link href="/projeler/olustur" className="inline-block mt-4 text-indigo-400 hover:text-indigo-300 underline">
-              Hemen bir tane oluştur
-            </Link>
-          </div>
-        )}
-
+        </div>
       </div>
-    </div>
+    </main>
   )
 }
