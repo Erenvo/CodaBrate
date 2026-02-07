@@ -1,36 +1,58 @@
 @import "tailwindcss";
 
-@theme {
-  /* --- Ana Renkler --- */
-  --color-brand-dark: #0E0436;      /* Ana Arka Plan */
-  --color-brand-darker: #00001C;    /* Footer/Koyu Alanlar */
-  --color-brand-surface: #131120;   /* Kart/Panel Arka Planları */
-  --color-accent-blue: #0088FF;     /* Vurgu Rengi / Butonlar */
+:root {
+  /* 🌌 Sayfa Arkaplanı: Derin Uzay Laciverti (Figma'dan) */
+  --bg-page: #01001C;
+  
+  /* 🔮 Kart Arkaplanı: Proje ve Yetenek kartlarındaki koyu mor/lacivert */
+  --bg-card: #1B1A33; 
+  
+  /* ⚡ Vurgu Rengi: Neon Mavi (Butonlar ve İkonlar) */
+  --color-primary: #0088FF;
 
-  /* --- Metin Renkleri --- */
-  --color-text-main: #EDEDED;       /* Ana Metin */
-  --color-text-muted: #B3B3B3;      /* İkincil Metin */
-  --color-text-dark: #1E1E1E;       /* Açık zemin üstü metin */
-
-  /* --- Sınır ve Çizgiler --- */
-  --color-border-dark: #2C2C2C;     /* Koyu modda çizgiler */
-  --color-border-light: #D9D9D9;    /* Açık modda çizgiler */
-
-  /* --- Font Ayarları --- */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ⬜ Input Arkaplanı: Daha temiz, beyazımsı/gri */
+  --bg-input: #ffffff; 
+  
+  /* ⚫ Buton Arkaplanı (İkincil): Koyu antrasit */
+  --bg-button: #2C2C2C; 
+  
+  /* Yazı Renkleri */
+  --text-main: #FFFDFD; /* Kırık Beyaz (Gözü yormaz) */
+  --text-muted: #B3B3B3; /* İkincil yazılar için gri */
+  --text-placeholder: #757575; /* Input içindeki yazılar */
 }
 
-:root {
-  --background: var(--color-brand-dark);
-  --foreground: var(--color-text-main);
+@theme inline {
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text-main);
+  
+  /* Özel Renk Tanımları (Tailwind class'larında kullanmak için) */
+  --color-card: var(--bg-card);
+  --color-primary: var(--color-primary);
+  --color-input: var(--bg-input);
+  --color-btn-dark: var(--bg-button);
+  --color-placeholder: var(--text-placeholder);
+  --color-muted: var(--text-muted);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  /* Düzeltilen kısım: */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-page);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden; /* Taşmaları engelle */
+}
+
+/* Scrollbar Özelleştirme (İsteğe Bağlı - Daha şık durur) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #01001C; 
+}
+::-webkit-scrollbar-thumb {
+  background: #2C2C2C; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0088FF; 
 }
