@@ -5,14 +5,18 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/app/AuthContext'
 import Link from 'next/link'
-import { User, Calendar, MapPin, Lock, Globe, ArrowLeft, CheckCircle, Trash2, Edit, Send, Clock, XCircle, MessageSquare } from 'lucide-react'
+import { motion } from 'motion/react'
+import {
+  ArrowLeft, User, Calendar, MapPin, Lock, Globe,
+  CheckCircle, Trash2, Edit, Send, Clock, XCircle,
+  MessageSquare, Tag, Loader2, AlertCircle, Shield
+} from 'lucide-react'
 
-// Tip Tanımları
 type ProjectType = {
   id: string
   title: string
   showcase_description: string
-  safe_details?: string | null 
+  safe_details?: string | null
   category_tags: string[] | null
   created_at: string
   owner_id: string
@@ -20,6 +24,7 @@ type ProjectType = {
   profiles: {
     id: string
     username: string
+    full_name: string
     university: string
     department: string
   } | null
@@ -33,14 +38,12 @@ type ApplicationType = {
 export default function ProjeDetay() {
   const params = useParams()
   const id = params?.id as string
-  
   const { user } = useAuth()
   const supabase = createClient()
   const router = useRouter()
 
   const [project, setProject] = useState<ProjectType | null>(null)
-  const [myApplication, setMyApplication] = useState<ApplicationType | null>(null) 
-  
+  const [myApplication, setMyApplication] = useState<ApplicationType | null>(null)
   const [loading, setLoading] = useState(true)
   const [applying, setApplying] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -49,15 +52,14 @@ export default function ProjeDetay() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
-      
-      // 1. Vitrin Verisi
+
       const { data: publicData, error: projectError } = await supabase
         .from('projects')
-        .select(`*, profiles (id, username, university, department)`)
+        .select(`*, profiles:owner_id ( id, username, full_name, university, department )`)
         .eq('id', id)
         .single()
 
-      if (projectError) {
+      if (projectError || !publicData) {
         setError('Proje bulunamadı.')
         setLoading(false)
         return
@@ -65,17 +67,13 @@ export default function ProjeDetay() {
 
       const projectWithSafe: ProjectType = { ...publicData, safe_details: null } as any
 
-      // 2. Kasa Verisi (Eğer yetki varsa Supabase veri döner)
       if (user) {
         const { data: vaultData } = await supabase
           .from('project_vault')
           .select('safe_details')
           .eq('project_id', id)
           .single()
-        
-        if (vaultData) {
-          projectWithSafe.safe_details = vaultData.safe_details
-        }
+        if (vaultData) projectWithSafe.safe_details = vaultData.safe_details
 
         const { data: appData } = await supabase
           .from('project_applications')
@@ -83,7 +81,6 @@ export default function ProjeDetay() {
           .eq('project_id', id)
           .eq('applicant_id', user.id)
           .single()
-        
         if (appData) setMyApplication(appData as any)
       }
 
@@ -92,30 +89,21 @@ export default function ProjeDetay() {
     }
 
     if (id) fetchData()
-  }, [id, user, supabase])
+  }, [id, user])
 
   const handleApply = async () => {
-    if (!user) {
-      alert('Başvuru yapmak için giriş yapmalısın.')
-      return
-    }
-    const message = window.prompt("Projeye katılmak istediğine dair kısa bir not bırak (Opsiyonel):")
-    
+    if (!user) { router.push('/login'); return }
+    const message = window.prompt('Projeye katılmak istediğinle dair kısa bir not bırak (opsiyonel):')
     setApplying(true)
-    const { error } = await supabase
-      .from('project_applications')
-      .insert({
-        project_id: id,
-        applicant_id: user.id,
-        message: message
-      })
-
+    const { error } = await supabase.from('project_applications').insert({
+      project_id: id,
+      applicant_id: user.id,
+      message: message || null
+    })
     if (error) {
       alert('Hata: ' + error.message)
     } else {
-      alert('Başvurun gönderildi! 🎉')
-      setMyApplication({ id: 'temp', status: 'pending' }) 
-      router.refresh()
+      setMyApplication({ id: 'temp', status: 'pending' })
     }
     setApplying(false)
   }
@@ -129,149 +117,265 @@ export default function ProjeDetay() {
       router.refresh()
     } else {
       setIsDeleting(false)
-      alert("Silme hatası: " + error.message)
+      alert('Silme hatası: ' + error.message)
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Yükleniyor...</div>
-  if (error || !project) return <div className="min-h-screen flex flex-col items-center justify-center text-gray-400 gap-4">{error || 'Proje bulunamadı.'} <Link href="/projeler" className="text-indigo-400 hover:underline">Geri Dön</Link></div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#7b7fc8] animate-spin" />
+      </div>
+    )
+  }
+
+  if (error || !project) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-4">
+        <AlertCircle className="w-12 h-12 text-[#6d7090]" />
+        <p className="text-[#8a8da8]">{error || 'Proje bulunamadı.'}</p>
+        <Link href="/projeler" className="px-5 py-2.5 bg-[#6366a8] text-white rounded-xl hover:bg-[#7074b8] transition-all text-sm">
+          Projelere Dön
+        </Link>
+      </div>
+    )
+  }
 
   const isOwner = user?.id === project.owner_id
-  
-  // Kilit mantığı: Veri geldiyse (safe_details doluysa) açıktır
   const isSafeUnlocked = !!project.safe_details
-
-  let rawStatus = project.status ? project.status.toLowerCase().trim() : 'active'
+  const rawStatus = project.status ? project.status.toLowerCase().trim() : 'active'
   const normalizedStatus = (rawStatus === 'active' || rawStatus === 'yayinda' || rawStatus === '') ? 'active' : rawStatus
   const isProjectActive = normalizedStatus !== 'completed' && normalizedStatus !== 'closed'
 
+  const owner = project.profiles
+  const ownerName = owner?.full_name || owner?.username || 'Anonim'
+  const ownerInitials = ownerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        
-        <Link href="/projeler" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition">
-          <ArrowLeft size={20} /> Projelere Dön
-        </Link>
+    <div className="min-h-screen">
+      {/* ── Başlık Bandı ── */}
+      <div className="bg-[#22242f]/60 backdrop-blur-sm border-b border-white/[0.06]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Link href="/projeler" className="inline-flex items-center gap-2 text-[#7d809e] hover:text-[#b0b3c8] transition-colors text-sm mb-6">
+            <ArrowLeft className="w-4 h-4" /> Projelere Dön
+          </Link>
 
-        {/* Üst Başlık Kartı */}
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 shadow-xl mb-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-          <div className="relative z-10">
-            <div className="mb-4">
-              {normalizedStatus === 'active' && <span className="inline-flex items-center gap-2 bg-green-500/10 text-green-400 px-3 py-1 rounded-full text-sm border border-green-500/20 font-medium">🟢 Yayında (Aktif)</span>}
-              {normalizedStatus === 'completed' && <span className="inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-sm border border-blue-500/20 font-medium">🏁 Proje Tamamlandı</span>}
-              {normalizedStatus === 'closed' && <span className="inline-flex items-center gap-2 bg-red-500/10 text-red-400 px-3 py-1 rounded-full text-sm border border-red-500/20 font-medium">🔴 Alım Kapalı</span>}
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">{project.title}</h1>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {project.category_tags?.map((tag, index) => (
-                <span key={index} className="px-3 py-1 rounded-full text-sm bg-indigo-900/50 text-indigo-300 border border-indigo-700">{tag}</span>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400 border-t border-gray-700 pt-6">
-              <Link href={`/profil/${project.profiles?.id}`} className="flex items-center gap-2 hover:text-indigo-400 transition">
-                <div className="bg-gray-700 p-1.5 rounded-full"><User size={16} /></div>
-                <span className="font-medium">{project.profiles?.username || 'Anonim'}</span>
-              </Link>
-              {project.profiles?.university && <div className="flex items-center gap-2"><MapPin size={16} /><span>{project.profiles.university}</span></div>}
-              <div className="flex items-center gap-2"><Calendar size={16} /><span>{new Date(project.created_at).toLocaleDateString('tr-TR')}</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          <div className="lg:col-span-2 space-y-8">
-            {/* VİTRİN */}
-            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4 text-indigo-400">
-                <Globe size={24} />
-                <h2 className="text-xl font-semibold">Proje Vitrini</h2>
-              </div>
-              <div className="prose prose-invert max-w-none text-gray-300 whitespace-pre-line leading-relaxed">
-                {project.showcase_description}
-              </div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            {/* Durum etiketi */}
+            <div className="mb-3">
+              {normalizedStatus === 'active' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs bg-emerald-400/10 text-emerald-300 border border-emerald-400/15">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Aktif — Üye Aranıyor
+                </span>
+              )}
+              {normalizedStatus === 'completed' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs bg-sky-400/10 text-sky-300 border border-sky-400/15">
+                  🏁 Tamamlandı
+                </span>
+              )}
+              {normalizedStatus === 'closed' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs bg-red-400/10 text-red-300 border border-red-400/15">
+                  🔴 Alım Kapalı
+                </span>
+              )}
             </div>
 
-            {/* --- KASA (GÜNCELLENDİ) --- */}
-            {/* Sadece yetkiliysen (safe_details doluysa) bu kutuyu göster */}
-            {isSafeUnlocked && (
-              <div className="bg-emerald-900/10 border border-emerald-500/30 rounded-xl p-6 transition-all">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Lock size={24} />
-                    <h2 className="text-xl font-semibold">Kasa (Gizli Detaylar)</h2>
-                  </div>
-                  {isOwner && <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded border border-emerald-500/30">Sahibi Sensin</span>}
-                  {myApplication?.status === 'approved' && <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded border border-emerald-500/30">Erişim İznin Var</span>}
-                </div>
+            <h1 className="text-2xl sm:text-3xl text-[#e0e2ec] mb-4">{project.title}</h1>
 
-                <div className="prose prose-invert max-w-none text-gray-300 whitespace-pre-line leading-relaxed">
-                  {project.safe_details}
-                </div>
+            {/* Etiketler */}
+            {project.category_tags && project.category_tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {project.category_tags.map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs bg-[#7b7fc8]/10 text-[#a5a8d8] border border-[#7b7fc8]/15">
+                    <Tag className="w-3 h-3" /> {tag}
+                  </span>
+                ))}
               </div>
             )}
-            {/* --------------------------- */}
+
+            {/* Proje sahibi bilgisi */}
+            <div className="flex flex-wrap items-center gap-5 text-sm text-[#7d809e]">
+              <Link href={`/profil/${owner?.username || project.owner_id}`} className="flex items-center gap-2 hover:text-[#a5a8d8] transition-colors">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#7b7fc8] to-[#9b7fb8] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                  {ownerInitials}
+                </div>
+                <span>{ownerName}</span>
+              </Link>
+              {owner?.university && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4" /> {owner.university}
+                </span>
+              )}
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                {new Date(project.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ── İçerik ── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid lg:grid-cols-3 gap-6">
+
+          {/* Sol ana içerik */}
+          <div className="lg:col-span-2 space-y-5">
+
+            {/* Proje Vitrini */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="bg-[#2e3044]/60 backdrop-blur-sm rounded-2xl border border-white/[0.07] overflow-hidden"
+            >
+              <div className="p-6 border-b border-white/[0.06] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-400/10 flex items-center justify-center">
+                  <Globe className="w-4 h-4 text-sky-300" />
+                </div>
+                <h2 className="text-[#e0e2ec]">Proje Vitrini</h2>
+                <span className="text-xs text-[#6d7090] bg-white/[0.04] px-2 py-0.5 rounded-lg ml-1">Herkese Açık</span>
+              </div>
+              <div className="p-6">
+                <p className="text-[#8a8da8] leading-relaxed whitespace-pre-line">{project.showcase_description}</p>
+              </div>
+            </motion.div>
+
+            {/* Kasa — sadece yetkili ise */}
+            {isSafeUnlocked && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                className="bg-emerald-400/[0.04] backdrop-blur-sm rounded-2xl border border-emerald-400/15 overflow-hidden"
+              >
+                <div className="p-6 border-b border-emerald-400/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-400/10 flex items-center justify-center">
+                      <Lock className="w-4 h-4 text-emerald-300" />
+                    </div>
+                    <h2 className="text-[#e0e2ec]">Kasa Detayları</h2>
+                    <span className="text-xs text-[#6d7090] bg-white/[0.04] px-2 py-0.5 rounded-lg ml-1">Gizli</span>
+                  </div>
+                  {isOwner && (
+                    <span className="text-xs text-emerald-300 bg-emerald-400/10 px-2.5 py-1 rounded-lg border border-emerald-400/15">Sahibi Sensin</span>
+                  )}
+                  {myApplication?.status === 'approved' && !isOwner && (
+                    <span className="text-xs text-emerald-300 bg-emerald-400/10 px-2.5 py-1 rounded-lg border border-emerald-400/15">Erişim İznin Var</span>
+                  )}
+                </div>
+                <div className="p-6">
+                  <p className="text-[#8a8da8] leading-relaxed whitespace-pre-line">{project.safe_details}</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Kasa kilitliyse bilgi */}
+            {!isSafeUnlocked && !isOwner && (
+              <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-[#7b7fc8]/[0.06] border border-[#7b7fc8]/10">
+                <Shield className="w-4 h-4 text-[#8b8fd8] flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-[#8a8da8]">
+                  {isProjectActive
+                    ? 'Başvurun onaylanınca "Kasa" detayları görünür hale gelir.'
+                    : 'Bu proje şu an kapalı.'}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* SAĞ KOLON (Aksiyonlar) */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 sticky top-24">
-              
+          {/* Sağ Aksiyon Paneli */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.12 }}
+              className="bg-[#2e3044]/60 backdrop-blur-sm rounded-2xl border border-white/[0.07] p-6 sticky top-24"
+            >
               {isOwner ? (
                 <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white mb-2">Proje Yönetimi</h3>
-                  <Link href="/dashboard" className="w-full bg-indigo-900/50 text-indigo-300 hover:bg-indigo-900 hover:text-white py-2 rounded-lg mb-2 border border-indigo-700/50 flex items-center justify-center gap-2 transition">
-                    <CheckCircle size={16} /> Başvuruları Yönet
+                  <h3 className="text-[#e0e2ec] mb-4">Proje Yönetimi</h3>
+                  <Link
+                    href="/dashboard"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366a8]/15 text-[#a5a8d8] border border-[#6366a8]/25 hover:bg-[#6366a8]/25 transition-all text-sm"
+                  >
+                    <CheckCircle className="w-4 h-4" /> Başvuruları Yönet
                   </Link>
-                  <Link href={`/projeler/${id}/duzenle`} className="flex items-center justify-center gap-2 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg transition">
-                    <Edit size={16} /> Projeyi Düzenle
+                  <Link
+                    href={`/projeler/${id}/duzenle`}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.08] text-[#8a8da8] hover:bg-white/[0.05] hover:text-[#c5c8d8] transition-all text-sm"
+                  >
+                    <Edit className="w-4 h-4" /> Projeyi Düzenle
                   </Link>
-                  <button onClick={handleDelete} disabled={isDeleting} className="flex items-center justify-center gap-2 w-full bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900/50 py-2 rounded-lg transition">
-                    <Trash2 size={16} /> Sil
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-400/10 text-red-400 border border-red-400/15 hover:bg-red-400/15 transition-all text-sm disabled:opacity-50"
+                  >
+                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    {isDeleting ? 'Siliniyor...' : 'Projeyi Sil'}
                   </button>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">İlgileniyor musun?</h3>
-                  {!myApplication && (
-                    <button 
+                  <h3 className="text-[#e0e2ec]">İlgileniyor musun?</h3>
+                  <p className="text-sm text-[#7d809e]">Bu projeye katılmak için başvurabilirsin.</p>
+
+                  {!myApplication && isProjectActive && (
+                    <button
                       onClick={handleApply}
-                      disabled={applying || !isProjectActive} 
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={applying}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#6366a8] text-white hover:bg-[#7074b8] transition-all shadow-md shadow-[#6366a8]/20 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {applying ? 'Gönderiliyor...' : <> <Send size={18} /> Projeye Başvur </>}
+                      {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      {applying ? 'Gönderiliyor...' : 'Projeye Başvur'}
                     </button>
                   )}
-                  {myApplication?.status === 'pending' && <div className="w-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 py-3 rounded-lg text-center font-medium flex items-center justify-center gap-2"><Clock size={18} /> Başvuru Beklemede</div>}
-                  {/* --- BURAYI DEĞİŞTİRİYORUZ --- */}
+
+                  {!isProjectActive && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-[#6d7090] text-sm">
+                      <XCircle className="w-4 h-4" /> Alım Kapalı
+                    </div>
+                  )}
+
+                  {myApplication?.status === 'pending' && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-400/10 border border-amber-400/15 text-amber-300 text-sm">
+                      <Clock className="w-4 h-4" /> Başvurun Beklemede
+                    </div>
+                  )}
+
                   {myApplication?.status === 'approved' && (
                     <div className="space-y-3">
-                      {/* Mevcut Onay Kutusu */}
-                      <div className="w-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 py-3 rounded-lg text-center font-medium flex items-center justify-center gap-2">
-                        <CheckCircle size={18} /> Başvurun Onaylandı!
+                      <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-400/10 border border-emerald-400/15 text-emerald-300 text-sm">
+                        <CheckCircle className="w-4 h-4" /> Başvurun Onaylandı!
                       </div>
-                      
-                      {/* 👇 YENİ EKLENEN SOHBET BUTONU 👇 */}
-                      <Link 
-                        href={`/mesajlar/${project.owner_id}?projectId=${project.id}`} 
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg text-center font-medium flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-500/20"
+                      <Link
+                        href={`/mesajlar/${project.owner_id}?projectId=${project.id}`}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#6366a8] text-white hover:bg-[#7074b8] transition-all text-sm"
                       >
-                        <MessageSquare size={18} /> Proje Sahibiyle Konuş
+                        <MessageSquare className="w-4 h-4" /> Proje Sahibiyle Konuş
                       </Link>
                     </div>
                   )}
-                  {/* ------------------------------- */}
-                  
-                  {/* Bilgilendirme yazısı - Kasa açık değilse göster */}
-                  {!isSafeUnlocked && (
-                    <p className="text-xs text-center text-gray-500 mt-2">
-                        {isProjectActive ? 'Başvurun onaylanınca "Kasa" detayları görünür olur.' : 'Bu proje kapalı.'}
+
+                  {myApplication?.status === 'rejected' && (
+                    <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-400/10 border border-red-400/15 text-red-400 text-sm">
+                      <XCircle className="w-4 h-4" /> Başvurun Reddedildi
+                    </div>
+                  )}
+
+                  {!user && (
+                    <p className="text-xs text-[#6d7090] text-center">
+                      <Link href="/login" className="text-[#a5a8d8] hover:underline">Giriş yap</Link> veya{' '}
+                      <Link href="/register" className="text-[#a5a8d8] hover:underline">kayıt ol</Link> — başvurmak için giriş yapman gerekiyor.
                     </p>
                   )}
                 </div>
               )}
-            </div>
+            </motion.div>
           </div>
 
         </div>

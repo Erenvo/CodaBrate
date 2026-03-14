@@ -1,109 +1,51 @@
+// app/components/home/HeroSection.tsx
 import React from 'react'
-import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 
-type Project = {
-  id: string
-  title: string
-  summary: string
-  tags: string[]
-  owner: string
-}
-
-interface HeroSectionProps {
-  projects: Project[]
-}
-
-export default function HeroSection({ projects }: HeroSectionProps) {
+export default function HeroSection() {
   return (
-    <section className="bg-gradient-to-r from-gray-900 to-gray-800 pb-12 pt-12">
-      <div className="mx-auto max-w-6xl px-6 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-        <div>
-          <h2 className="text-4xl font-extrabold text-white leading-tight">
-            Doğru ekip, doğru fikirle buluşsun.
-          </h2>
-          <p className="mt-4 text-gray-400">
-            Üniversite öğrencileri için projeni paylaş, yetenekleri filtrele,
-            güvenli bir şekilde ekip kur. "Vitrin" ve "Kasa" ile fikirlerini
-            koru.
-          </p>
+    <section className="relative w-full pt-32 pb-20 px-6 md:px-12 lg:px-24 flex flex-col justify-center min-h-[85vh]">
+      {/* Arka Plan Efektleri */}
+      <div className="absolute top-0 right-0 w-full h-full opacity-40 pointer-events-none z-0 overflow-hidden">
+        <div className="w-[500px] h-[500px] bg-indigo-900/40 rounded-full blur-[120px] absolute -top-20 -right-20 animate-pulse"></div>
+        <div className="w-[400px] h-[400px] bg-purple-900/30 rounded-full blur-[100px] absolute bottom-0 left-0"></div>
+      </div>
 
-          <div className="mt-6 flex gap-3">
-            <div className="relative flex-1">
-              <input
-                aria-label="Ara"
-                className="w-full rounded-md border border-gray-700 bg-gray-900 px-4 py-3 pr-12 text-sm text-gray-200 placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Proje veya yetenek ara (örn: React, NLP)"
-              />
-              <button className="absolute right-2 top-2/4 -translate-y-1/2 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium bg-indigo-600 text-white hover:opacity-90">
-                Ara
-              </button>
-            </div>
-            <button className="inline-flex items-center gap-2 rounded-md border border-gray-700 px-4 py-2 text-sm hover:bg-gray-800">
-              Filtreler
-            </button>
-          </div>
-
-          <div className="mt-6 flex gap-3 text-xs text-gray-400">
-            <div className="inline-flex items-center gap-2 rounded-md bg-gray-800 px-3 py-2">
-              🔒 Vitrin & Kasa
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-md bg-gray-800 px-3 py-2">
-              ⏱️ Zaman Damgası
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-md bg-gray-800 px-3 py-2">
-              🌍 Üniversite Doğrulaması
-            </div>
-          </div>
+      <div className="relative z-10 max-w-4xl mx-auto text-center md:text-left md:mx-0">
+        <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-8 font-inter">
+          Doğru ekip, <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+            doğru fikirle buluşsun.
+          </span>
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-300 max-w-2xl leading-relaxed mb-10 mx-auto md:mx-0">
+          Üniversite öğrencileri için projeni paylaş, yetenekleri filtrele, güvenli bir şekilde ekip kur. 
+          <span className="text-white font-semibold"> "Vitrin"</span> ve <span className="text-white font-semibold">"Kasa"</span> ile fikirlerini koru.
+        </p>
+        
+        <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+          <Link 
+            href="/auth/register" 
+            className="px-8 py-4 bg-white text-black font-semibold rounded-full text-lg hover:bg-gray-200 transition shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2"
+          >
+            Hemen Başla <ArrowRight size={20} />
+          </Link>
+          <Link 
+            href="/projeler" 
+            className="px-8 py-4 bg-transparent border border-gray-600 text-white font-medium rounded-full text-lg hover:border-white hover:bg-white/5 transition flex items-center justify-center"
+          >
+            Projeleri Keşfet
+          </Link>
         </div>
 
-        <div>
-          <div className="rounded-2xl border border-gray-700 bg-gray-800 p-6 shadow-sm">
-            <h3 className="font-semibold text-white">Öne çıkan projeler</h3>
-            <div className="mt-4 grid grid-cols-1 gap-3">
-              {projects.map((p) => (
-                <article key={p.id} className="flex items-start gap-3">
-                  <div className="h-10 w-10 shrink-0 rounded-md bg-indigo-700 flex items-center justify-center text-white font-semibold">
-                    {p.title
-                      .split(' ')
-                      .slice(0, 2)
-                      .map((s) => s[0])
-                      .join('')}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-white">
-                      {p.title}
-                    </h4>
-                    <p className="text-xs text-gray-400">{p.summary}</p>
-                    <div className="mt-2 flex gap-2">
-                      {p.tags.map((t) => (
-                        <span
-                          key={t}
-                          className="rounded-full bg-gray-700 px-2 py-1 text-xs text-gray-300"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
-              <Link
-                href="/projeler"
-                className="text-sm font-medium text-indigo-400 inline-flex items-center gap-2 hover:underline"
-              >
-                Tüm projeleri gör <ArrowRight size={16} />
-              </Link>
-              <Link
-                href="/projeler/olustur"
-                className="text-sm inline-flex items-center gap-2 rounded-md border border-indigo-500 px-3 py-2 text-indigo-400 hover:bg-gray-700"
-              >
-                Proje Oluştur
-              </Link>
-            </div>
+        {/* Güven Rozetleri - Alt Kısım */}
+        <div className="mt-12 flex flex-wrap gap-4 justify-center md:justify-start text-sm text-gray-400">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
+            🔒 Vitrin & Kasa
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
+            🌍 .edu.tr Doğrulama
           </div>
         </div>
       </div>

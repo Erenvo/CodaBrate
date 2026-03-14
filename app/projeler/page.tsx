@@ -1,201 +1,265 @@
-// app/projeler/page.tsx
-import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
-import { Plus, Search, ArrowRight, User } from 'lucide-react'
+"use client";
 
-// Cache'i kapatıp verinin her zaman güncel kalmasını sağlar
-export const dynamic = 'force-dynamic'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { Search, Clock, Eye, Lock, Heart, Users, Plus, Loader2 } from "lucide-react";
+import { motion } from "motion/react";
 
-// Veri Tipi Tanımlaması
+const SKILL_FILTERS = [
+  "React", "Python", "UI/UX", "Figma", "Node.js",
+  "Machine Learning", "Flutter", "Data Science", "Pazarlama", "Blockchain",
+];
+
 type Project = {
-  id: string
-  title: string
-  description: string
-  tags: string[]
-  category_tags?: string[]
-  created_at: string
-  owner_id: string
-  profiles?: {
-    username: string
-    full_name: string
-    // avatar_url kaldırıldı çünkü veritabanında yok
-  }
+  id: string;
+  title: string;
+  showcase_description: string;
+  category_tags: string[];
+  created_at: string;
+  owner_id: string;
+  profiles: {
+    full_name: string;
+    username: string;
+    university: string;
+  } | null;
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} dakika önce`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} saat önce`;
+  const days = Math.floor(hours / 24);
+  return `${days} gün önce`;
 }
 
-// Filtre Kategorileri
-const CATEGORIES = [
-  "Machine Learning", "Python", "Data Science", 
-  "Web Development", "Flutter", "Cyber Security", 
-  "Game Development", "React", "C#", "Swift"
-]
+export default function ProjelerPage() {
+  const supabase = createClient();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default async function ProjectsPage() {
-  const supabase = createClient()
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("projects")
+        .select(`
+          id,
+          title,
+          showcase_description,
+          category_tags,
+          created_at,
+          owner_id,
+          profiles:owner_id ( full_name, username, university )
+        `)
+        .order("created_at", { ascending: false });
 
-  // Projeleri Çek (Profil bilgisiyle beraber)
-  // DÜZELTME: 'avatar_url' sorgudan çıkarıldı.
-  const { data: projects, error } = await supabase
-    .from('projects')
-    .select(`
-      *,
-      profiles:owner_id (username, full_name)
-    `)
-    .order('created_at', { ascending: false })
+      if (!error && data) {
+        setProjects(data as unknown as Project[]);
+      }
+      setLoading(false);
+    };
+    fetchProjects();
+  }, []);
 
-  if (error) {
-    console.error("Supabase Hatası:", error.message)
-  }
+  const toggleSkill = (skill: string) => {
+    setSelectedSkills((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
+    );
+  };
+
+  const filtered = projects.filter((p) => {
+    const matchSearch =
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.showcase_description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSkills =
+      selectedSkills.length === 0 ||
+      selectedSkills.some((s) => p.category_tags?.includes(s));
+    return matchSearch && matchSkills;
+  });
 
   return (
-    // Ana Konteyner: bg-[#01001C] (Koyu Lacivert)
-    <main className="min-h-screen bg-[#01001C] text-white font-['Inter'] pb-20">
-      
-      {/* --- HEADER BÖLÜMÜ --- */}
-      <div className="max-w-[1440px] mx-auto px-6 pt-12 pb-8">
-        
-        {/* Başlık ve Alt Başlık */}
-        <div className="flex flex-col gap-4 mb-8">
-          <h1 className="text-4xl font-bold tracking-tight text-[#FFFDFD]">
-            Projeler
-          </h1>
-          <p className="text-2xl font-normal text-gray-300">
-            Hayalindeki projeyi bul veya kendi ekibini kur.
-          </p>
-        </div>
-
-        {/* Arama ve Aksiyon Alanı */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-          
-          {/* Arama Çubuğu */}
-          <div className="relative w-full md:w-[320px] group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-[#1E1E1E]" />
+    <div className="min-h-screen">
+      {/* ── Başlık ── */}
+      <div className="bg-[#22242f]/60 backdrop-blur-sm border-b border-white/[0.06]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl sm:text-3xl text-[#e0e2ec]">Projeler</h1>
+              <p className="text-[#7d809e] mt-1">
+                Açık projeleri keşfet veya kendi projenizi oluşturun
+              </p>
             </div>
+            <Link
+              href="/projeler/olustur"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#6366a8] text-white rounded-xl hover:bg-[#7074b8] transition-all shadow-md shadow-[#6366a8]/20"
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Proje
+            </Link>
+          </div>
+
+          {/* Arama */}
+          <div className="relative max-w-xl">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6d7090]" />
             <input
               type="text"
-              placeholder="Proje veya konu ara..."
-              className="block w-full pl-10 pr-4 py-3 bg-white border border-[#D9D9D9] rounded-full text-[#B3B3B3] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0088FF] focus:border-transparent transition-all shadow-sm"
+              placeholder="Proje ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-white/[0.08] bg-[#2a2c3e] text-[#d0d2dc] placeholder-[#6d7090] focus:outline-none focus:ring-2 focus:ring-[#7b7fc8]/40 focus:border-transparent transition-all"
             />
           </div>
 
-          {/* Proje Oluştur Butonu */}
-          <Link 
-            href="/projeler/olustur" 
-            className="flex items-center gap-2 bg-[#0088FF] hover:bg-blue-600 text-[#F5F5F5] px-6 py-3 rounded-full transition shadow-lg shadow-blue-500/20"
-          >
-            <Plus size={20} />
-            <span className="text-base font-medium">Proje Oluştur</span>
-          </Link>
-        </div>
-
-        {/* Kategori Filtreleri */}
-        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide mb-8">
-          <button className="flex-shrink-0 bg-white text-black px-5 py-2.5 rounded-full text-sm font-medium border border-transparent hover:opacity-90 transition">
-            Tümü
-          </button>
-          {CATEGORIES.map((cat) => (
-            <button 
-              key={cat}
-              className="flex-shrink-0 bg-[#2C2C2C] text-[#F5F5F5] px-5 py-2.5 rounded-full border border-[#2C2C2C] text-sm font-normal hover:border-gray-500 hover:bg-[#363636] transition"
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-      </div>
-
-      {/* --- PROJE KARTLARI GRID --- */}
-      <div className="max-w-[1440px] mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          
-          {/* Eğer proje yoksa veya hata varsa */}
-          {(!projects || projects.length === 0) && (
-             <div className="col-span-full text-center py-20 text-gray-500 flex flex-col items-center">
-               <p className="mb-4">Henüz hiç proje oluşturulmamış veya görüntülenemiyor.</p>
-               {error && <p className="text-red-400 text-sm">Hata Detayı: {error.message}</p>}
-             </div>
-          )}
-
-          {/* Projeleri Listele */}
-          {projects?.map((project: any) => {
-             // Etiket verisini güvenli hale getir
-             const displayTags = project.tags || project.category_tags || [];
-             
-             return (
-              <div 
-                key={project.id}
-                className="group relative flex flex-col h-[380px] bg-[#0E0436]/80 backdrop-blur-sm border border-[#EDEDED]/20 rounded-[30px] p-8 transition hover:border-[#0088FF]/50 hover:shadow-[0_0_30px_-10px_rgba(0,136,255,0.3)] shadow-[inset_0_16px_32px_-4px_rgba(12,12,13,0.1)]"
+          {/* Filtreler */}
+          <div className="flex flex-wrap gap-2 mt-4">
+            {SKILL_FILTERS.map((skill) => (
+              <button
+                key={skill}
+                onClick={() => toggleSkill(skill)}
+                className={`px-3 py-1.5 rounded-xl text-sm transition-all duration-200 ${
+                  selectedSkills.includes(skill)
+                    ? "bg-[#6366a8] text-white shadow-md shadow-[#6366a8]/20"
+                    : "bg-[#2e3044] text-[#8a8da8] border border-white/[0.06] hover:border-white/[0.12] hover:text-[#b0b3c8]"
+                }`}
               >
-                {/* Kart Üstü: Kullanıcı Bilgisi */}
-                <div className="flex items-center gap-3 mb-6">
-                  {/* Avatar olmadığı için direkt User ikonu kullanıyoruz */}
-                  <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
-                    <User className="text-white w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-white text-sm font-light tracking-wide">
-                      {project.profiles?.full_name || project.profiles?.username || 'Anonim Kaptan'}
-                    </h3>
-                    <span className="text-xs text-gray-400">Project Owner</span>
-                  </div>
-                </div>
-
-                {/* Kart İçeriği: Başlık ve Açıklama */}
-                <div className="flex-1">
-                  <h2 className="text-2xl font-semibold text-white mb-3 line-clamp-1 group-hover:text-[#0088FF] transition-colors">
-                    {project.title}
-                  </h2>
-                  <p className="text-[#B3B3B3] text-lg font-light leading-relaxed line-clamp-3 whitespace-pre-line">
-                    {project.description || "Açıklama yok."}
-                  </p>
-                </div>
-
-                {/* Ayıraç Çizgiler */}
-                <div className="relative h-px w-full bg-white/10 my-6">
-                   <div className="absolute left-0 top-0 h-full w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-                </div>
-
-                {/* Kart Altı: Etiketler ve Buton */}
-                <div className="flex items-center justify-between mt-auto">
-                  
-                  {/* Etiketler */}
-                  <div className="flex gap-2">
-                    {displayTags.slice(0, 2).map((tag: string, index: number) => (
-                      <span 
-                        key={index} 
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                          index === 0 
-                          ? 'bg-[#0088FF] text-white' 
-                          : 'bg-white text-black'
-                        }`}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {displayTags.length > 2 && (
-                      <span className="px-2 py-1.5 rounded-full bg-white/10 text-white text-xs">+</span>
-                    )}
-                  </div>
-
-                  {/* İncele Linki */}
-                  <Link 
-                    href={`/projeler/${project.id}`} 
-                    className="flex items-center gap-2 text-white hover:text-[#0088FF] transition group/link"
-                  >
-                    <span className="text-sm font-medium">İncele</span>
-                    <div className="bg-white text-black p-1 rounded-full group-hover/link:bg-[#0088FF] group-hover/link:text-white transition">
-                       <ArrowRight size={14} />
-                    </div>
-                  </Link>
-
-                </div>
-              </div>
-            )
-          })}
-
+                {skill}
+              </button>
+            ))}
+            {selectedSkills.length > 0 && (
+              <button
+                onClick={() => setSelectedSkills([])}
+                className="px-3 py-1.5 rounded-xl text-sm text-[#e07070] bg-[#e07070]/10 hover:bg-[#e07070]/15 transition-colors"
+              >
+                Temizle
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </main>
-  )
+
+      {/* ── Proje Listesi ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-8 h-8 text-[#7b7fc8] animate-spin" />
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-[#6d7090] mb-6">
+              {filtered.length} proje bulundu
+            </p>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtered.map((project, i) => {
+                const owner = project.profiles;
+                const ownerName = owner?.full_name || owner?.username || "Anonim";
+                const tags = project.category_tags ?? [];
+
+                return (
+                  <motion.div
+                    key={project.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: i * 0.05 }}
+                    className="bg-[#2e3044]/60 backdrop-blur-sm rounded-2xl border border-white/[0.07] hover:border-white/[0.12] hover:bg-[#2e3044]/80 transition-all duration-300 group"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-400/10 text-sky-300 text-xs">
+                          <Eye className="w-3 h-3" /> Vitrin
+                        </span>
+                        <button className="p-1.5 rounded-lg hover:bg-white/[0.05] transition-colors opacity-0 group-hover:opacity-100">
+                          <Heart className="w-4 h-4 text-[#6d7090]" />
+                        </button>
+                      </div>
+
+                      <Link href={`/projeler/${project.id}`}>
+                        <h3 className="text-[#d0d2dc] mb-2 group-hover:text-[#a5a8d8] transition-colors cursor-pointer line-clamp-2">
+                          {project.title}
+                        </h3>
+                      </Link>
+                      <p className="text-sm text-[#7d809e] mb-4 line-clamp-2 leading-relaxed">
+                        {project.showcase_description}
+                      </p>
+
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {tags.slice(0, 4).map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 rounded-lg bg-white/[0.05] text-[#8a8da8] text-xs border border-white/[0.04]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {tags.length > 4 && (
+                            <span className="px-2 py-0.5 rounded-lg bg-white/[0.05] text-[#6d7090] text-xs">
+                              +{tags.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="border-t border-white/[0.06] pt-4 flex items-center justify-between">
+                        <Link
+                          href={`/profil/${owner?.username || project.owner_id}`}
+                          className="flex items-center gap-2 group/owner"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#7b7fc8] to-[#9b7fb8] flex items-center justify-center text-white text-xs shadow-sm flex-shrink-0">
+                            {ownerName[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-xs text-[#b0b3c8] group-hover/owner:text-[#a5a8d8] transition-colors">
+                              {ownerName}
+                            </p>
+                            {owner?.university && (
+                              <p className="text-xs text-[#6d7090] truncate max-w-[120px]">
+                                {owner.university}
+                              </p>
+                            )}
+                          </div>
+                        </Link>
+                        <span className="flex items-center gap-1 text-xs text-[#6d7090]">
+                          <Clock className="w-3 h-3" />
+                          {timeAgo(project.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {filtered.length === 0 && !loading && (
+              <div className="text-center py-20">
+                <div className="w-16 h-16 rounded-2xl bg-[#2e3044] flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-[#6d7090]" />
+                </div>
+                <h3 className="text-[#d0d2dc] mb-2">Proje bulunamadı</h3>
+                <p className="text-[#7d809e] text-sm">
+                  {projects.length === 0
+                    ? "Henüz hiç proje yok. İlk projeyi sen oluştur!"
+                    : "Farklı anahtar kelimeler veya filtreler deneyebilirsiniz."}
+                </p>
+                {projects.length === 0 && (
+                  <Link
+                    href="/projeler/olustur"
+                    className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-[#6366a8] text-white rounded-xl hover:bg-[#7074b8] transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Proje Oluştur
+                  </Link>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

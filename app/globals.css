@@ -1,58 +1,107 @@
 @import "tailwindcss";
+@source "./**/*.{js,ts,jsx,tsx}";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  /* 🌌 Sayfa Arkaplanı: Derin Uzay Laciverti (Figma'dan) */
-  --bg-page: #01001C;
-  
-  /* 🔮 Kart Arkaplanı: Proje ve Yetenek kartlarındaki koyu mor/lacivert */
-  --bg-card: #1B1A33; 
-  
-  /* ⚡ Vurgu Rengi: Neon Mavi (Butonlar ve İkonlar) */
-  --color-primary: #0088FF;
-
-  /* ⬜ Input Arkaplanı: Daha temiz, beyazımsı/gri */
-  --bg-input: #ffffff; 
-  
-  /* ⚫ Buton Arkaplanı (İkincil): Koyu antrasit */
-  --bg-button: #2C2C2C; 
-  
-  /* Yazı Renkleri */
-  --text-main: #FFFDFD; /* Kırık Beyaz (Gözü yormaz) */
-  --text-muted: #B3B3B3; /* İkincil yazılar için gri */
-  --text-placeholder: #757575; /* Input içindeki yazılar */
+  --font-size: 16px;
+  --background: #262836;
+  --foreground: #d2d4de;
+  --card: #2e3044;
+  --card-foreground: #d2d4de;
+  --popover: #2e3044;
+  --popover-foreground: #d2d4de;
+  --primary: #8b8fdb;
+  --primary-foreground: #ffffff;
+  --secondary: #343750;
+  --secondary-foreground: #a7aad0;
+  --muted: #2a2c3e;
+  --muted-foreground: #7d809e;
+  --accent: #363955;
+  --accent-foreground: #a7aad0;
+  --destructive: #e87171;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: transparent;
+  --input-background: #2a2c3e;
+  --switch-background: #3a3d55;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #7b7fc8;
+  --radius: 0.75rem;
+  --sidebar: #232536;
+  --sidebar-foreground: #d2d4de;
+  --sidebar-primary: #8b8fdb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2e3044;
+  --sidebar-accent-foreground: #d2d4de;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #7b7fc8;
 }
 
 @theme inline {
-  --color-background: var(--bg-page);
-  --color-foreground: var(--text-main);
-  
-  /* Özel Renk Tanımları (Tailwind class'larında kullanmak için) */
-  --color-card: var(--bg-card);
-  --color-primary: var(--color-primary);
-  --color-input: var(--bg-input);
-  --color-btn-dark: var(--bg-button);
-  --color-placeholder: var(--text-placeholder);
-  --color-muted: var(--text-muted);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
-body {
-  background: var(--bg-page);
-  color: var(--text-main);
-  font-family: 'Inter', sans-serif;
-  overflow-x: hidden; /* Taşmaları engelle */
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Inter", system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  html { font-size: var(--font-size); }
+  h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  h2 { font-size: var(--text-xl); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  h3 { font-size: var(--text-lg); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  h4 { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  label { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  button { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  input { font-size: var(--text-base); font-weight: var(--font-weight-normal); line-height: 1.5; }
 }
 
-/* Scrollbar Özelleştirme (İsteğe Bağlı - Daha şık durur) */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #01001C; 
-}
-::-webkit-scrollbar-thumb {
-  background: #2C2C2C; 
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #0088FF; 
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #262836; }
+::-webkit-scrollbar-thumb { background: #3a3d55; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6366a8; }

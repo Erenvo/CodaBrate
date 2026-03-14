@@ -1,222 +1,195 @@
-// app/components/common/Navbar.tsx
-'use client'
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react'
-import Link from 'next/link'
-import { useAuth } from '@/app/AuthContext'
-import { createClient } from '@/lib/supabase/client'
-import { Search, Menu, X, User, LogOut, MessageCircle, Bell, Bookmark, Settings, LayoutDashboard } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, X, Globe, Bell, User, MessageSquare, LogIn, LogOut } from "lucide-react";
+import { useAuth } from "@/app/AuthContext";
 
 export default function Navbar() {
-  const { user, loading } = useAuth()
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
-  const profileMenuRef = useRef<HTMLDivElement>(null)
-  
-  const router = useRouter()
-  const supabase = createClient()
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const { user, loading, signOut } = useAuth();
 
-  // Profil menüsü dışına tıklayınca kapanması için
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setIsProfileMenuOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [profileMenuRef])
+  const fullName: string = user?.user_metadata?.full_name ?? user?.email ?? "Kullanıcı";
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
+  const username: string = user?.user_metadata?.username ?? "me";
+  const initials = fullName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const navLinks = [
+    { to: "/", label: "Ana Sayfa" },
+    { to: "/projeler", label: "Projeler" },
+    { to: "/yetenekler", label: "Keşfet" },
+    ...(user ? [{ to: "/dashboard", label: "Dashboard" }] : []),
+  ];
 
   return (
-    // DEĞİŞİKLİK BURADA: Glassmorphism (Buzlu Cam) ve Sticky (Sabit) özelliği
-    <nav className="w-full bg-[#01001C]/80 backdrop-blur-md border-b border-white/5 relative z-50 sticky top-0 transition-all duration-300">
-      
-      {/* İçerik Hizalama */}
-      <div className="max-w-[1440px] mx-auto px-6 h-[72px] flex items-center justify-between">
-        
-        {/* --- SOL TARAF: Logo ve Linkler --- */}
-        <div className="flex items-center gap-12">
-          {/* Logo */}
-          <Link href="/" className="flex flex-col justify-center">
-            <span className="text-white text-xl font-bold font-['Inter'] leading-tight tracking-tight hover:opacity-80 transition">
+    <nav className="sticky top-0 z-50 border-b border-white/[0.07] backdrop-blur-xl bg-[#262836]/85">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7b7fc8] to-[#9b7fb8] flex items-center justify-center shadow-md shadow-[#7b7fc8]/15">
+              <Globe className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg text-[#e0e2ec] tracking-tight">
               CodeBrate
             </span>
           </Link>
 
-          {/* Menü Linkleri (Desktop) */}
-          <div className="hidden lg:flex items-center gap-8">
-            <Link href="/projeler" className="text-white/80 hover:text-white text-base font-medium font-['Inter'] transition-colors">
-              Projeler
-            </Link>
-            <Link href="/yetenekler" className="text-white/80 hover:text-white text-base font-medium font-['Inter'] transition-colors">
-              Yetenek Havuzu
-            </Link>
-            <Link href="/nasil-calisir" className="text-white/80 hover:text-white text-base font-medium font-['Inter'] transition-colors">
-              Nasıl Çalışır?
-            </Link>
-          </div>
-        </div>
-
-        {/* --- SAĞ TARAF: Arama ve Profil --- */}
-        <div className="hidden lg:flex items-center gap-6">
-          
-          {/* Arama Çubuğu */}
-          <div className="relative w-[300px] xl:w-[380px] h-[40px] group">
-            <input 
-              type="text" 
-              placeholder="Proje, etiket veya konu ara..." 
-              className="w-full h-full bg-white/5 border border-white/10 rounded-full pl-5 pr-10 text-white placeholder-gray-400 text-sm font-['Inter'] focus:outline-none focus:bg-white/10 focus:border-[#0088FF]/50 transition-all"
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <Search className="w-4 h-4 text-gray-400 group-focus-within:text-[#0088FF] transition-colors" />
-            </div>
-          </div>
-
-          {/* Auth Durumu */}
-          {loading ? (
-             <div className="w-8 h-8 rounded-full bg-white/5 animate-pulse"></div>
-          ) : user ? (
-            // --- GİRİŞ YAPMIŞ KULLANICI ---
-            <div className="flex items-center gap-5">
-              
-              {/* İkonlar */}
-              <Link href="/mesajlar" className="text-gray-300 hover:text-white transition relative group">
-                <MessageCircle size={20} strokeWidth={1.5} />
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-[#01001C]"></span>
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                href={link.to}
+                className={`px-4 py-2 rounded-xl transition-all duration-200 ${
+                  pathname === link.to
+                    ? "bg-[#7b7fc8]/12 text-[#a5a8e0]"
+                    : "text-[#8a8da8] hover:bg-white/[0.05] hover:text-[#c5c8d8]"
+                }`}
+              >
+                {link.label}
               </Link>
+            ))}
+          </div>
 
-              <button className="text-gray-300 hover:text-white transition">
-                <Bell size={20} strokeWidth={1.5} />
-              </button>
-
-              <button className="text-gray-300 hover:text-white transition">
-                <Bookmark size={20} strokeWidth={1.5} />
-              </button>
-
-              {/* Dikey Ayıraç */}
-              <div className="w-px h-6 bg-white/10"></div>
-
-              {/* Avatar & Dropdown Menü */}
-              <div className="relative" ref={profileMenuRef}>
-                <button 
-                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                  className="w-9 h-9 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center hover:ring-2 hover:ring-[#0088FF]/50 transition overflow-hidden border border-white/10"
+          {/* Masaüstü sağ alan */}
+          <div className="hidden md:flex items-center gap-3">
+            {!loading && user ? (
+              /* ── Giriş yapılmış ── */
+              <>
+                <Link
+                  href="/mesajlar"
+                  className="relative p-2 rounded-xl hover:bg-white/[0.05] transition-colors"
                 >
-                  <User size={18} className="text-white" />
+                  <MessageSquare className="w-5 h-5 text-[#8a8da8]" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#6366a8] rounded-full" />
+                </Link>
+                <button className="relative p-2 rounded-xl hover:bg-white/[0.05] transition-colors">
+                  <Bell className="w-5 h-5 text-[#8a8da8]" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#e07070] rounded-full" />
                 </button>
-
-                {/* Dropdown İçeriği */}
-                {isProfileMenuOpen && (
-                  <div className="absolute right-0 top-12 w-60 bg-[#1B1A33] border border-white/10 rounded-xl shadow-2xl py-2 flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200 backdrop-blur-xl">
-                    <div className="px-4 py-3 border-b border-white/5 mb-2">
-                      <p className="text-white text-sm font-semibold truncate">{user.email}</p>
-                      <p className="text-[#0088FF] text-xs mt-0.5">Aktif Üye</p>
-                    </div>
-
-                    <Link 
-                      href="/dashboard" 
-                      onClick={() => setIsProfileMenuOpen(false)}
-                      className="px-4 py-2.5 text-gray-300 hover:bg-white/5 hover:text-white text-sm flex items-center gap-3 transition"
-                    >
-                      <LayoutDashboard size={16} /> Panelim
-                    </Link>
-
-                    <Link 
-                      href="/profil/duzenle" 
-                      onClick={() => setIsProfileMenuOpen(false)}
-                      className="px-4 py-2.5 text-gray-300 hover:bg-white/5 hover:text-white text-sm flex items-center gap-3 transition"
-                    >
-                      <Settings size={16} /> Ayarlar
-                    </Link>
-
-                    <div className="h-px bg-white/5 my-2 mx-2"></div>
-
-                    <button 
-                      onClick={handleLogout}
-                      className="px-4 py-2.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm flex items-center gap-3 transition w-full text-left"
-                    >
-                      <LogOut size={16} /> Çıkış Yap
-                    </button>
+                <Link
+                  href={`/profil/${username}`}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/[0.05] transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7b7fc8] to-[#9b7fb8] flex items-center justify-center shadow-sm">
+                    <span className="text-white text-xs font-semibold">{initials}</span>
                   </div>
-                )}
-              </div>
+                  <span className="text-[#b0b3c8]">{fullName.split(" ")[0]}</span>
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="px-4 py-2 rounded-xl border border-white/[0.08] text-[#c5c8d8] hover:bg-white/[0.05] transition-all flex items-center gap-1.5"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Çıkış</span>
+                </button>
+              </>
+            ) : !loading ? (
+              /* ── Giriş yapılmamış ── */
+              <>
+                <Link
+                  href="/login"
+                  className="px-4 py-2 rounded-xl border border-white/[0.08] text-[#c5c8d8] hover:bg-white/[0.05] transition-all flex items-center gap-1.5"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Giriş Yap</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 bg-[#6366a8] text-white rounded-xl hover:bg-[#7074b8] transition-all shadow-md shadow-[#6366a8]/20"
+                >
+                  Kayıt Ol
+                </Link>
+              </>
+            ) : null}
+          </div>
 
-            </div>
-          ) : (
-            // --- GİRİŞ YAPMAMIŞ KULLANICI ---
-            <div className="flex items-center gap-3">
-              <Link href="/login">
-                <div className="h-[36px] px-6 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/5 transition cursor-pointer group">
-                  <span className="text-white text-sm font-medium tracking-wide group-hover:text-white/90">
-                    Giriş Yap
-                  </span>
-                </div>
-              </Link>
-
-              <Link href="/register">
-                <div className="h-[36px] px-6 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition cursor-pointer shadow-[0_0_15px_-3px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-3px_rgba(255,255,255,0.5)]">
-                  <span className="text-black text-sm font-bold tracking-wide">
-                    Kayıt Ol
-                  </span>
-                </div>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* --- MOBİL MENÜ BUTONU --- */}
-        <div className="lg:hidden">
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white p-2 hover:bg-white/5 rounded-full transition">
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          <button
+            className="md:hidden p-2 rounded-xl hover:bg-white/[0.05]"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? (
+              <X className="w-6 h-6 text-[#c5c8d8]" />
+            ) : (
+              <Menu className="w-6 h-6 text-[#c5c8d8]" />
+            )}
           </button>
         </div>
       </div>
 
-      {/* --- MOBİL MENÜ İÇERİĞİ --- */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden absolute top-[72px] left-0 w-full bg-[#01001C]/95 backdrop-blur-xl border-t border-white/10 p-6 flex flex-col gap-6 shadow-2xl h-[calc(100vh-72px)] z-40 overflow-y-auto">
-          <Link href="/projeler" className="text-gray-300 hover:text-white text-lg font-medium" onClick={() => setIsMobileMenuOpen(false)}>Projeler</Link>
-          <Link href="/yetenekler" className="text-gray-300 hover:text-white text-lg font-medium" onClick={() => setIsMobileMenuOpen(false)}>Yetenek Havuzu</Link>
-          <Link href="/nasil-calisir" className="text-gray-300 hover:text-white text-lg font-medium" onClick={() => setIsMobileMenuOpen(false)}>Nasıl Çalışır?</Link>
-          
-          <div className="h-px bg-white/10 w-full my-2"></div>
-          
-          {!user && (
-            <div className="flex flex-col gap-4">
-              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full h-12 rounded-full border border-white/20 flex items-center justify-center text-white text-base font-medium">
-                Giriş Yap
+      {mobileOpen && (
+        <div className="md:hidden border-t border-white/[0.07] bg-[#262836]">
+          <div className="px-4 py-3 space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                href={link.to}
+                onClick={() => setMobileOpen(false)}
+                className={`block px-4 py-2.5 rounded-xl transition-colors ${
+                  pathname === link.to
+                    ? "bg-[#7b7fc8]/12 text-[#a5a8e0]"
+                    : "text-[#8a8da8] hover:bg-white/[0.05]"
+                }`}
+              >
+                {link.label}
               </Link>
-              <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="w-full h-12 rounded-full bg-white flex items-center justify-center text-black text-base font-bold">
-                Kayıt Ol
-              </Link>
-            </div>
-          )}
-          
-          {user && (
-             <div className="flex flex-col gap-4">
-               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-white text-lg p-2 hover:bg-white/5 rounded-lg">
-                 <LayoutDashboard size={22} /> Panelim
-               </Link>
-               <Link href="/mesajlar" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-white text-lg p-2 hover:bg-white/5 rounded-lg">
-                 <MessageCircle size={22} /> Mesajlar
-               </Link>
-               <Link href="/profil/duzenle" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-white text-lg p-2 hover:bg-white/5 rounded-lg">
-                 <Settings size={22} /> Ayarlar
-               </Link>
-               <button onClick={handleLogout} className="flex items-center gap-3 text-red-400 text-lg p-2 hover:bg-red-500/10 rounded-lg w-full text-left">
-                 <LogOut size={22} /> Çıkış Yap
-               </button>
-             </div>
-          )}
+            ))}
+            <hr className="my-2 border-white/[0.07]" />
+            {!loading && user ? (
+              /* ── Mobil: Giriş yapılmış ── */
+              <>
+                <Link
+                  href={`/profil/${username}`}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[#8a8da8] hover:bg-white/[0.05]"
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#7b7fc8] to-[#9b7fb8] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-xs font-semibold">{initials}</span>
+                  </div>
+                  {fullName}
+                </Link>
+                <Link
+                  href="/mesajlar"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-2.5 rounded-xl text-[#8a8da8] hover:bg-white/[0.05]"
+                >
+                  Mesajlar
+                </Link>
+                <button
+                  onClick={() => { setMobileOpen(false); signOut(); }}
+                  className="w-full text-left px-4 py-2.5 rounded-xl text-[#e07070] hover:bg-white/[0.05]"
+                >
+                  Çıkış Yap
+                </button>
+              </>
+            ) : !loading ? (
+              /* ── Mobil: Giriş yapılmamış ── */
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-2.5 rounded-xl text-[#8a8da8] hover:bg-white/[0.05] text-center"
+                >
+                  Giriş Yap
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-2.5 rounded-xl bg-[#6366a8] text-white text-center shadow-md shadow-[#6366a8]/20"
+                >
+                  Kayıt Ol
+                </Link>
+              </>
+            ) : null}
+          </div>
         </div>
       )}
     </nav>
-  )
+  );
 }
