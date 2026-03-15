@@ -146,29 +146,33 @@ export default function SohbetEkrani() {
     setSending(false)
   }
 
-  if (loading) return <div className="h-screen flex items-center justify-center text-gray-500">Sohbet yükleniyor...</div>
+  if (loading) return (
+    <div className="h-[calc(100vh-64px)] flex items-center justify-center">
+      <Loader2 className="w-7 h-7 text-[#7b7fc8] animate-spin" />
+    </div>
+  )
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] bg-gray-900 text-gray-100">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-[#262836] text-[#d0d2dc]">
       
       {/* HEADER */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-        <Link href="/mesajlar" className="text-gray-400 hover:text-white transition">
+      <div className="bg-[#22242f]/80 backdrop-blur-md border-b border-white/[0.06] p-4 flex items-center gap-4 sticky top-0 z-10">
+        <Link href="/mesajlar" className="text-[#8a8da8] hover:text-[#d0d2dc] transition">
           <ArrowLeft size={24} />
         </Link>
-        <div className="h-10 w-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold">
+        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#7b7fc8] to-[#9b7fb8] flex items-center justify-center text-white font-bold">
           {otherUser?.full_name ? otherUser.full_name.slice(0, 2).toUpperCase() : otherUser?.username?.slice(0, 2).toUpperCase() || '?'}
         </div>
         <div>
-          <h2 className="font-semibold text-white">{otherUser?.full_name || otherUser?.username}</h2>
-          <p className="text-xs text-indigo-400">@{otherUser?.username}</p>
+          <h2 className="text-[#e0e2ec]">{otherUser?.full_name || otherUser?.username}</h2>
+          <p className="text-xs text-[#7b7fc8]">@{otherUser?.username}</p>
         </div>
       </div>
 
       {/* MESAJLAR */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900/50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 mt-10">
+          <div className="text-center text-[#6d7090] mt-10">
             <p>Sohbeti başlat 👋</p>
             <p className="text-xs mt-1">Bu mesajlar gizlidir ve sadece ikiniz arasında kalır.</p>
           </div>
@@ -177,13 +181,13 @@ export default function SohbetEkrani() {
             const isMe = msg.sender_id === user?.id
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${
+                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
                   isMe 
-                    ? 'bg-indigo-600 text-white rounded-tr-none' 
-                    : 'bg-gray-800 text-gray-200 border border-gray-700 rounded-tl-none'
+                    ? 'bg-[#6366a8]/80 text-white rounded-br-md' 
+                    : 'bg-[#2e3044] text-[#d0d2dc] border border-white/[0.06] rounded-bl-md'
                 }`}>
-                  <p>{msg.content}</p>
-                  <span className={`text-[10px] block text-right mt-1 ${isMe ? 'text-indigo-200' : 'text-gray-500'}`}>
+                  <p className="leading-relaxed">{msg.content}</p>
+                  <span className={`text-[10px] block text-right mt-1 ${isMe ? 'text-white/40' : 'text-[#6d7090]'}`}>
                     {new Date(msg.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
@@ -195,18 +199,18 @@ export default function SohbetEkrani() {
       </div>
 
       {/* INPUT */}
-      <form onSubmit={handleSendMessage} className="bg-gray-800 border-t border-gray-700 p-4 flex gap-2">
+      <form onSubmit={handleSendMessage} className="bg-[#22242f]/80 backdrop-blur-md border-t border-white/[0.06] p-4 flex gap-2">
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Bir mesaj yaz..."
-          className="flex-1 bg-gray-900 border border-gray-700 text-white rounded-full px-5 py-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+          className="flex-1 bg-[#2a2c3e] border border-white/[0.08] text-[#d0d2dc] placeholder-[#6d7090] rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-[#7b7fc8]/40 focus:border-transparent transition-all text-sm"
         />
         <button 
           type="submit" 
           disabled={sending || !newMessage.trim()}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-[#6366a8] hover:bg-[#7074b8] text-white p-3 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-[#6366a8]/20"
         >
           {sending ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </button>
