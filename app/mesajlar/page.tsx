@@ -227,10 +227,20 @@ export default function MesajlarPage() {
   const handleSelectConversation = (id: string) => {
     setSelectedId(id);
     setShowMobileList(false);
-    // Okunmadıları sıfırla
+    // Local state'te sıfırla
     setConversations((prev) =>
       prev.map((c) => (c.otherUserId === id ? { ...c, unread: 0 } : c))
     );
+    // Supabase'de is_read = true yap
+    if (user) {
+      supabase
+        .from("messages")
+        .update({ is_read: true })
+        .eq("receiver_id", user.id)
+        .eq("sender_id", id)
+        .eq("is_read", false)
+        .then(() => {}); // fire and forget
+    }
   };
 
   if (authLoading || loading) {

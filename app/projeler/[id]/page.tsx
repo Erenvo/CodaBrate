@@ -9,7 +9,7 @@ import { motion } from 'motion/react'
 import {
   ArrowLeft, User, Calendar, MapPin, Lock, Globe,
   CheckCircle, Trash2, Edit, Send, Clock, XCircle,
-  MessageSquare, Tag, Loader2, AlertCircle, Shield
+  MessageSquare, Tag, Loader2, AlertCircle, Shield, TriangleAlert
 } from 'lucide-react'
 
 type ProjectType = {
@@ -47,6 +47,9 @@ export default function ProjeDetay() {
   const [loading, setLoading] = useState(true)
   const [applying, setApplying] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showApplyModal, setShowApplyModal] = useState(false)
+  const [applyMessage, setApplyMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -91,25 +94,33 @@ export default function ProjeDetay() {
     if (id) fetchData()
   }, [id, user])
 
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!user) { router.push('/login'); return }
-    const message = window.prompt('Projeye katılmak istediğinle dair kısa bir not bırak (opsiyonel):')
+    setShowApplyModal(true)
+  }
+
+  const submitApply = async () => {
     setApplying(true)
     const { error } = await supabase.from('project_applications').insert({
       project_id: id,
-      applicant_id: user.id,
-      message: message || null
+      applicant_id: user!.id,
+      message: applyMessage.trim() || null
     })
     if (error) {
       alert('Hata: ' + error.message)
     } else {
       setMyApplication({ id: 'temp', status: 'pending' })
+      setShowApplyModal(false)
+      setApplyMessage('')
     }
     setApplying(false)
   }
 
-  const handleDelete = async () => {
-    if (!window.confirm('Bu projeyi silmek istediğine emin misin?')) return
+  const handleDelete = () => {
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
     setIsDeleting(true)
     const { error } = await supabase.from('projects').delete().eq('id', id)
     if (!error) {
@@ -117,6 +128,7 @@ export default function ProjeDetay() {
       router.refresh()
     } else {
       setIsDeleting(false)
+      setShowDeleteModal(false)
       alert('Silme hatası: ' + error.message)
     }
   }
@@ -380,6 +392,130 @@ export default function ProjeDetay() {
 
         </div>
       </div>
+
+      {/* ── Silme Onay Modalı ── */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isDeleting && setShowDeleteModal(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-md bg-[#2a2c3e] border border-white/[0.09] rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+          >
+            <div className="h-1 w-full bg-gradient-to-r from-red-500 to-rose-400" />
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-red-400/10 flex items-center justify-center flex-shrink-0">
+                  <TriangleAlert className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <h2 className="text-[#e0e2ec] mb-1">Projeyi Sil</h2>
+                  <p className="text-sm text-[#7d809e]">
+                    Bu işlem geri alınamaz.{' '}
+                    <span className="text-[#d0d2dc] font-medium">&quot;{project?.title}&quot;</span>{' '}
+                    adlı proje ve tüm başvurular kalıcı olarak silinecek.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-400/[0.06] border border-red-400/10 mb-6">
+                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <p className="text-xs text-red-300">
+                  Başvurular, kasa verileri ve mesaj geçmişi silinecektir.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-white/[0.08] text-[#8a8da8] hover:bg-white/[0.05] hover:text-[#d0d2dc] transition-all text-sm disabled:opacity-50"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/90 text-white hover:bg-red-500 transition-all text-sm shadow-md shadow-red-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Siliniyor...</>
+                  ) : (
+                    <><Trash2 className="w-4 h-4" /> Evet, Sil</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ── Başvuru Modalı ── */}
+      {showApplyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !applying && setShowApplyModal(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-lg bg-[#2a2c3e] border border-white/[0.09] rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+          >
+            <div className="h-1 w-full bg-gradient-to-r from-[#6366a8] to-[#9b7fb8]" />
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-[#6366a8]/20 flex items-center justify-center flex-shrink-0">
+                  <Send className="w-6 h-6 text-[#9b7fb8]" />
+                </div>
+                <div>
+                  <h2 className="text-[#e0e2ec] mb-1">Projeye Başvur</h2>
+                  <p className="text-sm text-[#7d809e]">
+                    <span className="text-[#d0d2dc]">&quot;{project?.title}&quot;</span> projesi için başvurunu gönderiyorsun.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm text-[#d0d2dc] mb-2 font-medium">
+                  Projeye katılma nedenin nedir? <span className="text-[#6d7090] font-normal">(Opsiyonel)</span>
+                </label>
+                <textarea
+                  value={applyMessage}
+                  onChange={(e) => setApplyMessage(e.target.value)}
+                  placeholder="Kendinden bahset, projenin hangi kısmıyla ilgilendiğini anlat..."
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border border-white/[0.08] bg-[#22242f]/50 text-[#d0d2dc] placeholder-[#6d7090] text-sm focus:outline-none focus:ring-2 focus:ring-[#7b7fc8]/40 focus:border-transparent transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setShowApplyModal(false)}
+                  disabled={applying}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-white/[0.08] text-[#8a8da8] hover:bg-white/[0.05] hover:text-[#d0d2dc] transition-all text-sm disabled:opacity-50"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  onClick={submitApply}
+                  disabled={applying}
+                  className="flex-[2] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366a8] text-white hover:bg-[#7074b8] transition-all text-sm shadow-md shadow-[#6366a8]/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {applying ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Gönderiliyor...</>
+                  ) : (
+                    <><CheckCircle className="w-4 h-4" /> Başvurumu Gönder</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

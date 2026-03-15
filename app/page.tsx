@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   Shield,
   Users,
@@ -12,6 +14,9 @@ import {
   Sparkles,
   CheckCircle2,
   Globe,
+  Tag,
+  MapPin,
+  Clock,
 } from "lucide-react";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import { motion } from "motion/react";
@@ -80,7 +85,68 @@ const stats = [
   { value: "45+", label: "Ülke" },
 ];
 
+type RecentProject = {
+  id: string;
+  title: string;
+  showcase_description: string;
+  category_tags: string[] | null;
+  created_at: string;
+  profiles: { full_name: string; university: string } | null;
+};
+
+type RecentUser = {
+  id: string;
+  full_name: string;
+  username: string;
+  university: string;
+  skills: string[] | null;
+};
+
+const cardGradients = [
+  "from-sky-400/20 to-indigo-400/10",
+  "from-violet-400/20 to-purple-400/10",
+  "from-emerald-400/20 to-teal-400/10",
+  "from-rose-400/20 to-pink-400/10",
+  "from-amber-400/20 to-orange-400/10",
+  "from-[#7b7fc8]/20 to-[#9b7fb8]/10",
+];
+
+function timeAgo(iso: string) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} sa önce`;
+  return `${Math.floor(diff / 86400)} gün önce`;
+}
+
+function getInitials(name: string) {
+  return (name || "?").split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+}
+
 export default function HomePage() {
+  const supabase = createClient();
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, title, showcase_description, category_tags, created_at, profiles:owner_id(full_name, university)")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (projects) setRecentProjects(projects as unknown as RecentProject[]);
+
+      const { data: users } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, university, skills")
+        .not("skills", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (users) setRecentUsers(users as RecentUser[]);
+    };
+    fetchData();
+  }, []);
+
   return (
     <div>
       {/* ── Hero ── */}
@@ -189,8 +255,91 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Son Eklenen Projeler ── */}
+      {recentProjects.length > 0 && (
+        <section className="py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-12">
+              <div>
+                <h2 className="text-3xl sm:text-4xl text-[#e0e2ec] mb-3">
+                  Son Eklenen Projeler
+                </h2>
+                <p className="text-[#7d809e]">
+                  Platformdaki en yeni projeler — hemen başvur!
+                </p>
+              </div>
+              <Link
+                href="/projeler"
+                className="hidden sm:inline-flex items-center gap-2 text-[#a5a8d8] hover:text-[#d0d2dc] transition-colors text-sm"
+              >
+                Tümünü Gör <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {recentProjects.map((project, i) => (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.07 }}
+                >
+                  <Link
+                    href={`/projeler/${project.id}`}
+                    className="group block h-full bg-[#2e3044]/60 backdrop-blur-sm rounded-2xl border border-white/[0.07] hover:border-white/[0.14] hover:bg-[#2e3044]/90 transition-all duration-300 overflow-hidden"
+                  >
+                    {/* Renk şeridi */}
+                    <div className={`h-1.5 w-full bg-gradient-to-r ${cardGradients[i % cardGradients.length]}`} />
+                    <div className="p-6">
+                      <h3 className="text-[#d0d2dc] group-hover:text-[#e8eaf2] transition-colors mb-2 line-clamp-1">
+                        {project.title}
+                      </h3>
+                      <p className="text-[#7d809e] text-sm leading-relaxed line-clamp-2 mb-4">
+                        {project.showcase_description}
+                      </p>
+
+                      {project.category_tags && project.category_tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {project.category_tags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs bg-[#7b7fc8]/10 text-[#a5a8d8] border border-[#7b7fc8]/10">
+                              <Tag className="w-3 h-3" /> {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-3 border-t border-white/[0.06]">
+                        <div className="flex items-center gap-2 text-xs text-[#6d7090]">
+                          {project.profiles?.university && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {project.profiles.university.split(" ").slice(0, 2).join(" ")}
+                            </span>
+                          )}
+                        </div>
+                        <span className="flex items-center gap-1 text-xs text-[#5a5d7a]">
+                          <Clock className="w-3 h-3" />
+                          {timeAgo(project.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="mt-8 text-center sm:hidden">
+              <Link href="/projeler" className="inline-flex items-center gap-2 text-[#a5a8d8] text-sm">
+                Tüm Projeleri Gör <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Features ── */}
-      <section className="py-24">
+      <section className="py-24 bg-[#22242f]/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl text-[#e0e2ec] mb-4">
@@ -212,20 +361,83 @@ export default function HomePage() {
                 transition={{ duration: 0.5, delay: i * 0.08 }}
                 className="bg-[#2e3044]/60 backdrop-blur-sm rounded-2xl p-6 border border-white/[0.07] hover:border-white/[0.12] hover:bg-[#2e3044]/80 transition-all duration-300"
               >
-                <div
-                  className={`w-12 h-12 rounded-xl ${f.color} flex items-center justify-center mb-4`}
-                >
+                <div className={`w-12 h-12 rounded-xl ${f.color} flex items-center justify-center mb-4`}>
                   <f.icon className="w-6 h-6" />
                 </div>
                 <h3 className="text-[#d0d2dc] mb-2">{f.title}</h3>
-                <p className="text-[#7d809e] text-sm leading-relaxed">
-                  {f.desc}
-                </p>
+                <p className="text-[#7d809e] text-sm leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* ── Öne Çıkan Yetenekler ── */}
+      {recentUsers.length > 0 && (
+        <section className="py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-12">
+              <div>
+                <h2 className="text-3xl sm:text-4xl text-[#e0e2ec] mb-3">
+                  Yetenekli Öğrenciler
+                </h2>
+                <p className="text-[#7d809e]">
+                  Projene katılmaya hazır öğrencileri keşfet.
+                </p>
+              </div>
+              <Link
+                href="/yetenekler"
+                className="hidden sm:inline-flex items-center gap-2 text-[#a5a8d8] hover:text-[#d0d2dc] transition-colors text-sm"
+              >
+                Tümünü Gör <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {recentUsers.map((u, i) => (
+                <motion.div
+                  key={u.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.07 }}
+                >
+                  <Link
+                    href={`/profil/${u.username || u.id}`}
+                    className="group flex items-start gap-4 p-5 bg-[#2e3044]/60 backdrop-blur-sm rounded-2xl border border-white/[0.07] hover:border-white/[0.14] hover:bg-[#2e3044]/90 transition-all duration-300"
+                  >
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${cardGradients[i % cardGradients.length]} flex items-center justify-center text-white font-semibold flex-shrink-0 shadow-md`}>
+                      {getInitials(u.full_name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[#d0d2dc] group-hover:text-[#e8eaf2] transition-colors text-sm truncate">
+                        {u.full_name || u.username}
+                      </p>
+                      {u.university && (
+                        <p className="text-xs text-[#7b7fc8] mt-0.5 truncate">{u.university}</p>
+                      )}
+                      {u.skills && u.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {u.skills.slice(0, 3).map((s) => (
+                            <span key={s} className="text-xs px-2 py-0.5 rounded-lg bg-white/[0.06] text-[#8a8da8] border border-white/[0.04]">
+                              {s}
+                            </span>
+                          ))}
+                          {u.skills.length > 3 && (
+                            <span className="text-xs px-2 py-0.5 rounded-lg bg-white/[0.04] text-[#6d7090]">
+                              +{u.skills.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── How it works ── */}
       <section className="py-24 bg-[#22242f]/40">
@@ -253,9 +465,7 @@ export default function HomePage() {
                   {item.step}
                 </div>
                 <h3 className="text-[#d0d2dc] mb-2">{item.title}</h3>
-                <p className="text-[#7d809e] text-sm leading-relaxed">
-                  {item.desc}
-                </p>
+                <p className="text-[#7d809e] text-sm leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -270,8 +480,7 @@ export default function HomePage() {
               Projenizi Hayata Geçirmeye Hazır mısınız?
             </h2>
             <p className="text-white/65 mb-8 text-lg">
-              Binlerce öğrenci zaten platformda. Siz de katılıp doğru partneri
-              bulun.
+              Binlerce öğrenci zaten platformda. Siz de katılıp doğru partneri bulun.
             </p>
             <Link
               href="/projeler"
