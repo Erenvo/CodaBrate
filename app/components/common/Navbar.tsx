@@ -2,14 +2,33 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X, Globe, Bell, User, MessageSquare, LogIn, LogOut } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, X, Globe, Bell, User, MessageSquare, LogIn, LogOut, CheckCheck } from "lucide-react";
 import { useAuth } from "@/app/AuthContext";
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+
+type Notification = {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+};
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const notifRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading, signOut } = useAuth();
+  const supabase = createClient();
 
   const fullName: string = user?.user_metadata?.full_name ?? user?.email ?? "Kullanıcı";
 
@@ -27,6 +46,86 @@ export default function Navbar() {
     { to: "/yetenekler", label: "Keşfet" },
     ...(user ? [{ to: "/dashboard", label: "Dashboard" }] : []),
   ];
+
+  // Dışarıya tıklandığında menüyü kapat
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Bildirimleri çek ve Realtime dinle
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchNotifications = async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      
+      if (error) {
+        console.error("Bildirimler çekilirken hata:", error);
+      }
+      
+      if (data) {
+        setNotifications(data);
+      }
+    };
+
+    fetchNotifications();
+
+    const channel = supabase
+      .channel("nav_notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log("Yeni bildirim realtime'dan geldi:", payload);
+          setNotifications((prev) => [payload.new as Notification, ...prev]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log("Bildirim güncellendi realtime:", payload);
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === payload.new.id ? (payload.new as Notification) : n))
+          );
+        }
+      )
+      .subscribe((status) => {
+        console.log("Realtime abonelik durumu:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const handleNotificationClick = async (notif: Notification) => {
+    if (!notif.is_read) {
+      await supabase.from("notifications").update({ is_read: true }).eq("id", notif.id);
+      setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
+    }
+    setShowNotifications(false);
+    if (notif.link) router.push(notif.link);
+  };
+
+  const markAllAsRead = async () => {
+    if (!user || unreadCount === 0) return;
+    await supabase.from("notifications").update({ is_read: true }).eq("user_id", user.id).eq("is_read", false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  };
 
   return (
     <nav className="sticky top-0 z-50 border-b border-white/[0.07] backdrop-blur-xl bg-[#262836]/85">
@@ -69,10 +168,77 @@ export default function Navbar() {
                   <MessageSquare className="w-5 h-5 text-[#8a8da8]" />
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#6366a8] rounded-full" />
                 </Link>
-                <button className="relative p-2 rounded-xl hover:bg-white/[0.05] transition-colors">
-                  <Bell className="w-5 h-5 text-[#8a8da8]" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#e07070] rounded-full" />
-                </button>
+                <div className="relative" ref={notifRef}>
+                  <button
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className={`relative p-2 rounded-xl transition-colors ${
+                      showNotifications ? "bg-white/[0.08]" : "hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <Bell className="w-5 h-5 text-[#8a8da8]" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#e07070] rounded-full border-2 border-[#262836]" />
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {showNotifications && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-3 w-80 bg-[#2a2c3e] border border-white/[0.09] rounded-2xl shadow-2xl shadow-black/40 overflow-hidden z-50"
+                      >
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#2a2c3e]/90">
+                          <h3 className="text-[#e0e2ec] font-medium text-sm">Bildirimler</h3>
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={markAllAsRead}
+                              className="text-xs text-[#7b7fc8] hover:text-[#9b7fb8] transition-colors flex items-center gap-1"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" /> Tümünü Okundu İşaretle
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-80 overflow-y-auto">
+                          {notifications.length === 0 ? (
+                            <div className="px-4 py-8 text-center text-[#6d7090] text-sm">
+                              Henüz bildiriminiz yok.
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-white/[0.04]">
+                              {notifications.map((notif) => (
+                                <button
+                                  key={notif.id}
+                                  onClick={() => handleNotificationClick(notif)}
+                                  className={`w-full text-left px-4 py-3 hover:bg-white/[0.03] transition-colors ${
+                                    notif.is_read ? "opacity-75" : "bg-[#7b7fc8]/[0.03]"
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-sm mb-0.5 ${notif.is_read ? 'text-[#b0b3c8]' : 'text-[#e0e2ec] font-medium'}`}>
+                                        {notif.title}
+                                      </p>
+                                      <p className="text-xs text-[#7d809e] line-clamp-2">{notif.message}</p>
+                                      <span className="text-[10px] text-[#5a5d7a] mt-1.5 block">
+                                        {new Date(notif.created_at).toLocaleDateString("tr-TR")} {new Date(notif.created_at).toLocaleTimeString("tr-TR", {hour: '2-digit', minute:'2-digit'})}
+                                      </span>
+                                    </div>
+                                    {!notif.is_read && (
+                                      <span className="w-2 h-2 rounded-full bg-[#7b7fc8] flex-shrink-0 mt-1.5" />
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
                 <Link
                   href={`/profil/${username}`}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/[0.05] transition-colors"

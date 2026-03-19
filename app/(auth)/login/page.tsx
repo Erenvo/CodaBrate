@@ -209,11 +209,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setRememberMe(!rememberMe)}
-                className={`w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0 ${
-                  rememberMe
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0 ${rememberMe
                     ? "bg-[#6366a8] border-[#6366a8]"
                     : "border-white/[0.15] bg-transparent hover:border-white/[0.25]"
-                }`}
+                  }`}
               >
                 {rememberMe && (
                   <svg width="10" height="8" viewBox="0 0 10 8" fill="none">

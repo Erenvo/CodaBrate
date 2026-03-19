@@ -182,7 +182,10 @@ export default function MesajlarPage() {
   }, [user, fetchConversations]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const timeout = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+    return () => clearTimeout(timeout);
   }, [selectedId, conversations]);
 
   const selected = conversations.find((c) => c.otherUserId === selectedId);
@@ -212,13 +215,22 @@ export default function MesajlarPage() {
     if (error) {
       alert("Gönderilemedi: " + error.message);
       setNewMessage(content);
+      console.error("Genel sayfa mesaj gönderme hatası:", error);
     } else if (data) {
+      console.log("Genel sayfada mesaj başarıyla eklendi, ekrana yansıtılıyor...", data);
       setConversations((prev) =>
-        prev.map((c) =>
-          c.otherUserId === selected.otherUserId
-            ? { ...c, messages: [...c.messages, data as DbMessage], lastMessage: content, time: "Az önce" }
-            : c
-        )
+        prev.map((c) => {
+          if (c.otherUserId === selected.otherUserId) {
+            const isDuplicate = c.messages.some((m) => m.id === data.id);
+            return {
+              ...c,
+              messages: isDuplicate ? c.messages : [...c.messages, data as DbMessage],
+              lastMessage: content,
+              time: "Az önce"
+            };
+          }
+          return c;
+        })
       );
     }
     setSending(false);

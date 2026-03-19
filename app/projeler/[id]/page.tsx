@@ -112,6 +112,22 @@ export default function ProjeDetay() {
       setMyApplication({ id: 'temp', status: 'pending' })
       setShowApplyModal(false)
       setApplyMessage('')
+      
+      // Proje sahibine bildirim yolla
+      if (project?.owner_id && project.owner_id !== user!.id) {
+        const { error: notifError } = await supabase.from('notifications').insert({
+          user_id: project.owner_id,
+          type: 'new_application',
+          title: 'Yeni Başvuru Geldi',
+          message: `${user!.user_metadata?.full_name || user!.user_metadata?.username || 'Bir kullanıcı'}, "${project.title}" projenize başvurdu.`,
+          link: '/dashboard'
+        })
+        if (notifError) {
+          console.error("Proje sahibine bildirim yollarken hata:", notifError);
+        } else {
+          console.log("Proje sahibine bildirim başarıyla eklendi");
+        }
+      }
     }
     setApplying(false)
   }

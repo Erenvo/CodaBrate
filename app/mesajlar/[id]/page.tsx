@@ -49,7 +49,11 @@ export default function SohbetEkrani() {
   }
 
   useEffect(() => {
-    scrollToBottom()
+    // DOM'un güncellenmesi için ufak bir bekleme (Next.js batch updates)
+    const timeout = setTimeout(() => {
+      scrollToBottom()
+    }, 100)
+    return () => clearTimeout(timeout)
   }, [messages])
 
   useEffect(() => {
@@ -139,9 +143,14 @@ export default function SohbetEkrani() {
     if (error) {
       alert('Gönderilemedi: ' + error.message)
       setNewMessage(msgContent)
+      console.error("Mesaj gönderme hatası:", error)
     } else if (data) {
-      // 👇 EKRANA HEMEN EKLE (Realtime'ı bekleme, anında görünsün)
-      setMessages((prev) => [...prev, data as MessageType])
+      console.log("Mesaj başarıyla veritabanına eklendi, ekrana yansıtılıyor...", data)
+      // 👇 EKRANA HEMEN EKLE (Duplicate önleme)
+      setMessages((prev) => {
+        if (prev.some(m => m.id === data.id)) return prev;
+        return [...prev, data as MessageType];
+      })
     }
     setSending(false)
   }

@@ -34,7 +34,7 @@ type Application = {
   status: string;
   project_id: string;
   project_title: string;
-  applicant_id: string;
+  applicant_id: string; // Bildirim için eklendi
   applicant_name: string;
   applicant_username: string;
 };
@@ -63,6 +63,11 @@ export default function DashboardPage() {
 
   const [activeTab, setActiveTab] = useState<"overview" | "team" | "messages">("overview");
   const [profile, setProfile] = useState<Profile | null>(null);
+  
+  // Reddetme Modalı
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectApp, setRejectApp] = useState<{ id: string, applicantId: string, projectTitle: string, applicantName: string } | null>(null);
+  const [rejectMessage, setRejectMessage] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [myApplications, setMyApplications] = useState<MyApplication[]>([]);
@@ -109,7 +114,7 @@ export default function DashboardPage() {
             .select(`
               id, message, status, project_id,
               projects ( title ),
-              profiles:applicant_id ( full_name, username )
+              profiles:applicant_id ( id, full_name, username )
             `)
             .in("project_id", projectIds)
             .order("created_at", { ascending: false });
@@ -160,14 +165,36 @@ export default function DashboardPage() {
 
   const pendingApplications = applications.filter((a) => a.status === "pending");
 
-  const handleApplicationStatus = async (appId: string, newStatus: "approved" | "rejected") => {
+  const handleApplicationStatus = async (appId: string, applicantId: string, projectTitle: string, newStatus: "approved" | "rejected", rejectMsg: string = "") => {
     await supabase
       .from("project_applications")
       .update({ status: newStatus })
       .eq("id", appId);
+
     setApplications((prev) =>
       prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
     );
+
+    // Başvuru sahibine bildirim yolla
+    const statusText = newStatus === "approved" ? "onaylandı" : "reddedildi";
+    let notifMessage = `"${projectTitle}" projesine yaptığınız başvuru ${statusText}.`;
+    if (newStatus === "rejected" && rejectMsg.trim().length > 0) {
+      notifMessage += ` Proje Sahibi Notu: "${rejectMsg.trim()}"`;
+    }
+
+    const { error: notifError } = await supabase.from("notifications").insert({
+      user_id: applicantId, // Başvuru sahibinin id'si
+      type: newStatus === "approved" ? "application_approved" : "application_rejected",
+      title: `Başvurunuz ${statusText === 'onaylandı' ? 'Onaylandı! 🎉' : 'Reddedildi'}`,
+      message: notifMessage,
+      link: newStatus === "approved" ? `/mesajlar/${user?.user_metadata?.username}` : null
+    });
+    
+    if (notifError) {
+      console.error("Başvuru sahibine bildirim yollarken hata:", notifError);
+    } else {
+      console.log("Başvuru sahibine bildirim başarıyla eklendi");
+    }
   };
 
   const displayName = profile?.full_name || user?.email || "Kullanıcı";
@@ -434,17 +461,23 @@ export default function DashboardPage() {
                           {app.status === "pending" ? (
                             <>
                               <button
-                                onClick={() => handleApplicationStatus(app.id, "approved")}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20 transition-all text-xs"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5" /> Onayla
-                              </button>
-                              <button
-                                onClick={() => handleApplicationStatus(app.id, "rejected")}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-400/10 text-red-400 hover:bg-red-400/20 transition-all text-xs"
-                              >
-                                <XCircle className="w-3.5 h-3.5" /> Reddet
-                              </button>
+                            onClick={() => handleApplicationStatus(app.id, app.applicant_id, app.project_title, "approved")}
+                            className="p-2 text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
+                            title="Kabul Et"
+                          >
+                            <CheckCircle className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRejectApp({ id: app.id, applicantId: app.applicant_id, projectTitle: app.project_title, applicantName: app.applicant_name });
+                              setShowRejectModal(true);
+                              setRejectMessage("");
+                            }}
+                            className="p-2 text-rose-400 hover:bg-rose-400/10 rounded-lg transition-colors"
+                            title="Reddet"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
                             </>
                           ) : app.status === "approved" ? (
                             <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-lg">
@@ -554,6 +587,69 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Reddetme Modalı ── */}
+      {showRejectModal && rejectApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowRejectModal(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-lg bg-[#2a2c3e] border border-white/[0.09] rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+          >
+            <div className="h-1 w-full bg-gradient-to-r from-red-500 to-rose-400" />
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-red-400/10 flex items-center justify-center flex-shrink-0">
+                  <XCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <h2 className="text-[#e0e2ec] mb-1">Başvuruyu Reddet</h2>
+                  <p className="text-sm text-[#7d809e]">
+                    <span className="text-[#d0d2dc]">{rejectApp.applicantName}</span> kullanıcısının{' '}
+                    <span className="text-[#d0d2dc]">&quot;{rejectApp.projectTitle}&quot;</span> projesine olan başvurusunu reddediyorsun.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm text-[#d0d2dc] mb-2 font-medium">
+                  Reddetme Nedeni <span className="text-[#6d7090] font-normal">(Opsiyonel ama tavsiye edilir)</span>
+                </label>
+                <textarea
+                  value={rejectMessage}
+                  onChange={(e) => setRejectMessage(e.target.value)}
+                  placeholder="Adaya yeteneklerinin eksik olduğunu, ilan kontenjanının dolduğunu veya başka bir nedeni kibarca açıklayabilirsin..."
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border border-white/[0.08] bg-[#22242f]/50 text-[#d0d2dc] placeholder-[#6d7090] text-sm focus:outline-none focus:ring-2 focus:ring-red-400/40 focus:border-transparent transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setShowRejectModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-white/[0.08] text-[#8a8da8] hover:bg-white/[0.05] hover:text-[#d0d2dc] transition-all text-sm"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  onClick={() => {
+                    handleApplicationStatus(rejectApp.id, rejectApp.applicantId, rejectApp.projectTitle, "rejected", rejectMessage);
+                    setShowRejectModal(false);
+                  }}
+                  className="flex-[2] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/90 text-white hover:bg-red-500 transition-all text-sm shadow-md shadow-red-500/20"
+                >
+                  <XCircle className="w-4 h-4" /> Evet, Reddet
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
